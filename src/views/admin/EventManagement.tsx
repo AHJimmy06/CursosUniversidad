@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../utils/supabaseClient';
 import { EventWithResponsible, Event, UserProfile } from '../../types/user';
 import { Button, Table, Modal, TextInput, Select, Textarea, Alert } from 'flowbite-react';
-import { IconPlus, IconEdit, IconTrash } from '@tabler/icons-react';
+import { IconEdit, IconTrash } from '@tabler/icons-react';
 
 const EventManagement = () => {
   const [events, setEvents] = useState<EventWithResponsible[]>([]);
@@ -50,28 +50,10 @@ const EventManagement = () => {
     }
   };
 
-  const handleCreate = () => {
-    setEditingEvent(null);
-    setFormData({
-      nombre: '',
-      descripcion: '',
-      estado: 'borrador',
-      tipo_evento: 'curso',
-      fecha_inicio_evento: '',
-      fecha_fin_evento: '',
-      fecha_inicio_inscripcion: '',
-      fecha_fin_inscripcion: '',
-      es_pagado: false,
-      costo: 0,
-      genera_certificado: false,
-      numero_horas: 0,
-      nota_aprobacion: 70,
-      audiencia: 'público_general',
-    });
-    setShowModal(true);
-  };
+
 
   const handleEdit = async (event: EventWithResponsible) => {
+    console.log('Editing event:', event);
     try {
       const { data, error } = await supabase
         .from('Eventos')
@@ -81,8 +63,21 @@ const EventManagement = () => {
 
       if (error) throw error;
 
+      console.log('Fetched event data:', data);
+
+      // Format dates for datetime-local inputs
+      const formattedData = {
+        ...data,
+        fecha_inicio_evento: data.fecha_inicio_evento ? data.fecha_inicio_evento.slice(0, 16) : '',
+        fecha_fin_evento: data.fecha_fin_evento ? data.fecha_fin_evento.slice(0, 16) : '',
+        fecha_inicio_inscripcion: data.fecha_inicio_inscripcion ? data.fecha_inicio_inscripcion.slice(0, 16) : '',
+        fecha_fin_inscripcion: data.fecha_fin_inscripcion ? data.fecha_fin_inscripcion.slice(0, 16) : '',
+      };
+
+      console.log('Formatted data:', formattedData);
+
       setEditingEvent(data);
-      setFormData(data);
+      setFormData(formattedData);
       setShowModal(true);
     } catch (error) {
       console.error('Error fetching event details:', error);
@@ -141,11 +136,13 @@ const EventManagement = () => {
 
       setShowModal(false);
       fetchEvents();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving event:', error);
-      setAlert({ type: 'failure', message: 'Error al guardar evento' });
+      setAlert({ type: 'failure', message: error.message || 'Error al guardar evento' });
     }
   };
+
+
 
   const handleInputChange = (field: keyof Event, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -158,11 +155,7 @@ const EventManagement = () => {
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Gestión de Eventos con Responsable</h1>
-        <Button onClick={handleCreate} color="blue">
-          <IconPlus className="mr-2" />
-          Nuevo Evento
-        </Button>
+        <h1 className="text-2xl font-bold">Asignación de Responsables</h1>
       </div>
 
       {alert && (
@@ -195,7 +188,7 @@ const EventManagement = () => {
                     {event.estado}
                   </span>
                 </Table.Cell>
-                <Table.Cell>{event.responsable_info.nombre} {event.responsable_info.apellido}</Table.Cell>
+                <Table.Cell>{event.responsable_info.nombre1} {event.responsable_info.apellido1}</Table.Cell>
                 <Table.Cell>{event.responsable_info.cedula}</Table.Cell>
                 <Table.Cell>
                   <div className="flex space-x-2">
@@ -218,7 +211,7 @@ const EventManagement = () => {
           {editingEvent ? 'Editar Evento' : 'Crear Evento'}
         </Modal.Header>
         <Modal.Body>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form id="eventForm" onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del Evento</label>
@@ -287,7 +280,7 @@ const EventManagement = () => {
                   <option value="">Seleccionar Responsable</option>
                   {users.map((user) => (
                     <option key={user.id} value={user.id}>
-                      {user.nombre1} {user.apellido1} - {user.cedula}
+                      {user.nombre1} {user.apellido1}
                     </option>
                   ))}
                 </Select>

@@ -4,12 +4,16 @@ import { UserProfile } from '../../types/user';
 import { Button, Table, Modal, TextInput, Select, Alert } from 'flowbite-react';
 import { IconUserPlus, IconEdit, IconTrash } from '@tabler/icons-react';
 
+interface UserFormData extends Partial<UserProfile> {
+  password?: string;
+}
+
 const UserManagement = () => {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
-  const [formData, setFormData] = useState<Partial<UserProfile>>({});
+  const [formData, setFormData] = useState<UserFormData>({});
   const [alert, setAlert] = useState<{ type: 'success' | 'failure'; message: string } | null>(null);
 
   useEffect(() => {
@@ -45,6 +49,7 @@ const UserManagement = () => {
       telefono: '',
       email: '',
       fecha_nacimiento: '',
+      password: '',
       rol_usuario: 'general',
       is_active: true,
     });
@@ -93,29 +98,48 @@ const UserManagement = () => {
         if (error) throw error;
         setAlert({ type: 'success', message: 'Usuario actualizado exitosamente' });
       } else {
-        // Create user - Note: This would typically involve Supabase Auth
-        // For now, we'll just create the profile
-        const { error } = await supabase
-          .from('perfiles')
-          .insert([{
-            ...formData,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          }]);
+        // Create user with Supabase Auth
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: formData.email!,
+          password: formData.password!,
+        });
 
-        if (error) throw error;
+        if (authError) throw authError;
+
+        if (authData.user) {
+          const { error: profileError } = await supabase
+            .from('perfiles')
+            .insert([{
+              id: authData.user.id,
+              nombre1: formData.nombre1,
+              nombre2: formData.nombre2,
+              apellido1: formData.apellido1,
+              apellido2: formData.apellido2,
+              cedula: formData.cedula,
+              telefono: formData.telefono,
+              email: formData.email,
+              fecha_nacimiento: formData.fecha_nacimiento,
+              rol_usuario: formData.rol_usuario,
+              is_active: formData.is_active,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            }]);
+
+          if (profileError) throw profileError;
+        }
+
         setAlert({ type: 'success', message: 'Usuario creado exitosamente' });
       }
 
       setShowModal(false);
       fetchUsers();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving user:', error);
-      setAlert({ type: 'failure', message: 'Error al guardar usuario' });
+      setAlert({ type: 'failure', message: error.message || 'Error al guardar usuario' });
     }
   };
 
-  const handleInputChange = (field: keyof UserProfile, value: any) => {
+  const handleInputChange = (field: keyof UserFormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -265,6 +289,17 @@ const UserManagement = () => {
                 required
               />
             </div>
+            {!editingUser && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+                <TextInput
+                  type="password"
+                  value={formData.password || ''}
+                  onChange={(e) => handleInputChange('password', e.target.value)}
+                  required
+                />
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
               <Select

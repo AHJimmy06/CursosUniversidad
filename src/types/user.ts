@@ -22,8 +22,8 @@ export interface EventWithResponsible {
   responsable_uuid: string;
   responsable_info: {
     cedula: string;
-    nombre: string;
-    apellido: string;
+    nombre1: string;
+    apellido1: string;
     correo?: string;
   };
 }

@@ -47,7 +47,7 @@ const SidebarContent: MenuItem[] = [
         isPro: false,
       },
       {
-        name: "Gestión de Eventos",
+        name: "Asignación de Responsables",
         icon: "solar:calendar-line-duotone",
         id: uniqueId(),
         url: "/admin/events",
