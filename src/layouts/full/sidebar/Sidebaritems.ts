@@ -9,7 +9,7 @@ export interface ChildItem {
   url?: any;
   color?: string;
   isPro?: boolean;
-  roles?: string[]; // Añadir la propiedad roles aquí
+  roles?: string[];
 }
 
 export interface MenuItem {
@@ -22,7 +22,7 @@ export interface MenuItem {
   children?: ChildItem[];
   url?: any;
   isPro?: boolean;
-  roles?: string[]; // Ya está aquí
+  roles?: string[];
 }
 
 const SidebarContent: MenuItem[] = [
@@ -36,34 +36,46 @@ const SidebarContent: MenuItem[] = [
         url: "/",
         isPro: false,
       },
+    ],
+  },
+  {
+    heading: "ADMINISTRACIÓN",
+    children: [
       {
-        name: "Eventos", 
-        icon: "solar:calendar-line-duotone", 
+        name: "Gestión de Usuarios",
+        icon: "solar:users-group-two-rounded-line-duotone",
         id: uniqueId(),
-        url: "/eventos", 
+        url: "/admin/usermanagement",
         isPro: false,
-        roles: ['administrador'], // Solo visible para administradores
+      },
+      {
+        name: "Eventos",
+        icon: "solar:calendar-line-duotone",
+        id: uniqueId(),
+        url: "/eventos",
+        isPro: false,
+        roles: ["administrador"],
         children: [
           {
-            name: "Crear Evento", 
+            name: "Crear Evento",
             icon: "solar:document-add-line-duotone",
             id: uniqueId(),
-            url: "/eventos/crear", 
+            url: "/eventos/crear",
             isPro: false,
-            roles: ['administrador'], 
+            roles: ["administrador"],
           },
           {
-            name: "Listar Eventos", 
-            icon: "solar:list-bold", 
+            name: "Listar Eventos",
+            icon: "solar:list-bold",
             id: uniqueId(),
-            url: "/eventos/listar", 
+            url: "/eventos/listar",
             isPro: false,
-            roles: ['administrador'], 
-          }
-        ]
-      }
-    ]
-  }
+            roles: ["administrador"],
+          },
+        ],
+      },
+    ],
+  },
 ];
 
 export default SidebarContent;

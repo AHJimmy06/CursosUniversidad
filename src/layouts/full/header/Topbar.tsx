@@ -40,7 +40,7 @@ const Topbar = () => {
               {
                 dropdownItems.map((item) => {
                     return (
-                        <Dropdown.Item className="flex items-center gap-1 text-sm py-2.5 px-4 group" as={Link} to={item.href} icon={() => <Icon icon="tabler:external-link" className="text-lg text-link group-hover:text-primary" />}>{item.title}</Dropdown.Item>
+                        <Dropdown.Item key={item.id} className="flex items-center gap-1 text-sm py-2.5 px-4 group" as={Link} to={item.href} icon={() => <Icon icon="tabler:external-link" className="text-lg text-link group-hover:text-primary" />}>{item.title}</Dropdown.Item>
                     )
                 })
               }
@@ -54,7 +54,7 @@ const Topbar = () => {
               {
                 dropdownItems.map((item) => {
                     return (
-                        <Dropdown.Item className="flex items-center gap-1 text-sm py-2.5 px-4 group" as={Link} to={item.href} icon={() => <Icon icon="tabler:external-link" className="text-lg text-link group-hover:text-primary" />}>{item.title}</Dropdown.Item>
+                        <Dropdown.Item key={item.id} className="flex items-center gap-1 text-sm py-2.5 px-4 group" as={Link} to={item.href} icon={() => <Icon icon="tabler:external-link" className="text-lg text-link group-hover:text-primary" />}>{item.title}</Dropdown.Item>
                     )
                 })
               }
