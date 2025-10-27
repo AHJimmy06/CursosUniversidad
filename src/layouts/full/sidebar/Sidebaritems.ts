@@ -8,7 +8,8 @@ export interface ChildItem {
   item?: any;
   url?: any;
   color?: string;
-  isPro?:boolean
+  isPro?: boolean;
+  roles?: string[];
 }
 
 export interface MenuItem {
@@ -20,7 +21,8 @@ export interface MenuItem {
   items?: MenuItem[];
   children?: ChildItem[];
   url?: any;
-  isPro?:boolean
+  isPro?: boolean;
+  roles?: string[];
 }
 
 const SidebarContent: MenuItem[] = [
@@ -43,18 +45,37 @@ const SidebarContent: MenuItem[] = [
         name: "Gestión de Usuarios",
         icon: "solar:users-group-two-rounded-line-duotone",
         id: uniqueId(),
-          url: "/admin/usermanagement",
+        url: "/admin/usermanagement",
         isPro: false,
       },
       {
-        name: "Asignación de Responsables",
+        name: "Eventos",
         icon: "solar:calendar-line-duotone",
         id: uniqueId(),
-        url: "/admin/events",
+        url: "/eventos",
         isPro: false,
+        roles: ["administrador"],
+        children: [
+          {
+            name: "Crear Evento",
+            icon: "solar:document-add-line-duotone",
+            id: uniqueId(),
+            url: "/eventos/crear",
+            isPro: false,
+            roles: ["administrador"],
+          },
+          {
+            name: "Listar Eventos",
+            icon: "solar:list-bold",
+            id: uniqueId(),
+            url: "/eventos/listar",
+            isPro: false,
+            roles: ["administrador"],
+          },
+        ],
       },
     ],
-  }
+  },
 ];
 
 export default SidebarContent;
