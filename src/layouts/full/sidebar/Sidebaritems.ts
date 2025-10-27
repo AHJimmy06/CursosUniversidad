@@ -35,6 +35,25 @@ const SidebarContent: MenuItem[] = [
         isPro: false,
       },
     ],
+  },
+  {
+    heading: "ADMINISTRACIÓN",
+    children: [
+      {
+        name: "Gestión de Usuarios",
+        icon: "solar:users-group-two-rounded-line-duotone",
+        id: uniqueId(),
+          url: "/admin/usermanagement",
+        isPro: false,
+      },
+      {
+        name: "Gestión de Eventos",
+        icon: "solar:calendar-line-duotone",
+        id: uniqueId(),
+        url: "/admin/events",
+        isPro: false,
+      },
+    ],
   }
 ];
 

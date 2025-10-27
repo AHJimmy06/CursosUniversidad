@@ -5,8 +5,23 @@ import SimpleBar from "simplebar-react";
 import React from "react";
 import FullLogo from "../shared/logo/FullLogo";
 import NavCollapse from "./NavCollapse";
+import { useUser } from "../../../contexts/UserContext";
 
 const SidebarLayout = () => {
+  const { profile } = useUser();
+
+  const filteredSidebarContent = SidebarContent.map(section => ({
+    ...section,
+    children: section.children?.filter(child => {
+      if (section.heading === "ADMINISTRACIÓN") {
+        return profile?.rol === 'administrador';
+      }
+      return true;
+    })
+  })).filter(section => section.children && section.children.length > 0);
+
+
+
   return (
     <>
       <div className="xl:block hidden">
@@ -20,8 +35,8 @@ const SidebarLayout = () => {
           <SimpleBar className="h-[calc(100vh_-_130px)]">
             <Sidebar.Items className="px-5 mt-2">
               <Sidebar.ItemGroup className="sidebar-nav hide-menu">
-                {SidebarContent &&
-                  SidebarContent?.map((item, index) => (
+                {filteredSidebarContent &&
+                  filteredSidebarContent?.map((item, index) => (
                     <div className="caption" key={item.heading}>
                       <React.Fragment key={index}>
                         <h5 className="text-link dark:text-white/70 caption font-semibold leading-6 tracking-widest text-xs pb-2 uppercase">

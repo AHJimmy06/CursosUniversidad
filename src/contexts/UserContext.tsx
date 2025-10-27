@@ -6,6 +6,7 @@ interface Profile {
   id: string;
   nombre1: string;
   apellido1: string;
+  rol: string;
 }
 
 interface UserContextType {
@@ -30,12 +31,16 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       setUser(session?.user ?? null);
 
       if (session?.user) {
-        const { data: profileData } = await supabase
+        const { data: profileData, error } = await supabase
           .from('perfiles')
-          .select('id, nombre1, apellido1')
+          .select('id, nombre1, apellido1, rol')
           .eq('id', session.user.id)
           .single();
-        setProfile(profileData);
+        if (error) {
+          console.error('Error fetching profile:', error);
+        } else {
+          setProfile(profileData);
+        }
       }
       setLoading(false);
     };
