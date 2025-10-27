@@ -12,8 +12,6 @@ const ListEvents = Loadable(lazy(() => import("../views/Eventos/ListEvents"))); 
 
 const Dashboard = Loadable(lazy(() => import('../views/dashboards/Dashboard')));
 const MiPerfil = Loadable(lazy(() => import('../views/perfil/MiPerfil')));
-const UserManagement = Loadable(lazy(() => import('../views/admin/UserManagement')));
-const EventManagement = Loadable(lazy(() => import('../views/admin/EventManagement')));
 
 const Login = Loadable(lazy(() => import('../views/auth/login/Login')));
 const Register = Loadable(lazy(() => import('../views/auth/register/Register')));
@@ -24,12 +22,6 @@ const AuthRoutes = () => {
   const { user, loading, isLoggingIn } = useUser();
   if (loading) return null;
   return user && !isLoggingIn ? <Navigate to="/" /> : <Outlet />;
-};
-
-const AdminRoute = () => {
-  const { profile, loading } = useUser();
-  if (loading) return null;
-  return profile?.rol === 'administrador' ? <Outlet /> : <Navigate to="/" />;
 };
 
 const Router = [
@@ -46,20 +38,6 @@ const Router = [
           { path: '/eventos/crear', exact: true, element: <CreateEvent/> },   // Cambiado
           { path: '/eventos/listar', exact: true, element: <ListEvents/> }, // Nueva ruta
           { path: 'perfil', element: <MiPerfil /> },
-        ],
-      },
-      {
-        path: '/admin',
-        element: <AdminRoute />,
-        children: [
-          {
-            path: '',
-            element: <FullLayout />,
-            children: [
-              { path: 'usermanagement', element: <UserManagement /> },
-              { path: 'events', element: <EventManagement /> },
-            ],
-          },
         ],
       },
     ],

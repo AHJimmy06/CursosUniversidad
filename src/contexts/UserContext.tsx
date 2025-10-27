@@ -6,7 +6,7 @@ interface Profile {
   id: string;
   nombre1: string;
   apellido1: string;
-  rol: 'administrador' | 'general';
+  rol: 'administrador' | 'general'; // Añadir el campo rol
 }
 
 interface UserContextType {
@@ -26,57 +26,31 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   useEffect(() => {
-    // 1. Función solo para la carga inicial
     const fetchSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setUser(session?.user ?? null);
 
       if (session?.user) {
-        const { data: profileData, error } = await supabase
+        const { data: profileData } = await supabase
           .from('perfiles')
-          .select('id, nombre1, apellido1, rol')
+          .select('id, nombre1, apellido1, rol') // Incluir 'rol' en la selección
           .eq('id', session.user.id)
           .single();
-        if (error) {
-          console.error('Error fetching profile on initial load:', error);
-        } else {
-          setProfile(profileData);
-        }
+        setProfile(profileData);
       }
       setLoading(false);
     };
 
     fetchSession();
 
-    // 2. Listener para cambios (login/logout)
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        // Actualiza el usuario (será null si es logout)
-        setUser(session?.user ?? null);
-
-        if (session?.user) {
-          // --- ESTA ES LA CORRECCIÓN ---
-          // Si hay sesión (login), busca el perfil con el ID de esa sesión
-          setLoading(true); // Opcional: mostrar carga durante el login
-          const { data: profileData, error } = await supabase
-            .from('perfiles')
-            .select('id, nombre1, apellido1, rol')
-            .eq('id', session.user.id)
-            .single();
-
-          if (error) {
-            console.error('Error fetching profile on auth change:', error);
-            setProfile(null);
-          } else {
-            setProfile(profileData);
-          }
-          setLoading(false); // Opcional
-        } else {
-          // Si no hay sesión (logout), limpia el perfil
-          setProfile(null);
-        }
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (!session?.user) {
+        setProfile(null);
+      } else {
+        fetchSession();
       }
-    );
+    });
 
     return () => {
       authListener.subscription.unsubscribe();
@@ -94,11 +68,10 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 };
 
-// No olvides exportar el hook para usar el contexto
 export const useUser = () => {
   const context = useContext(UserContext);
   if (context === undefined) {
-    throw new Error('useUser must be used within a UserProvider');
+    throw new Error('useUser debe ser usado dentro de un UserProvider');
   }
   return context;
 };

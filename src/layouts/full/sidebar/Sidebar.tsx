@@ -1,5 +1,5 @@
 import { Sidebar } from "flowbite-react";
-// Importar los tipos MenuItem y ChildItem
+// --- CORRECCIÓN 1: Importar los tipos MenuItem y ChildItem ---
 import SidebarContent, { MenuItem, ChildItem } from "./Sidebaritems";
 import NavItems from "./NavItems";
 import SimpleBar from "simplebar-react";
@@ -13,8 +13,8 @@ const SidebarLayout = () => {
   const { profile } = useUser();
   const userRole = profile?.rol;
 
-  // --- LÓGICA DE 'DEVELOP' (La más sólida) ---
-  // Se define explícitamente los tipos de entrada y SALIDA de la función.
+  // --- CORRECCIÓN 2: Definir explícitamente los tipos de entrada y SALIDA de la función ---
+  // La función recibe un array (que puede ser undefined) y SIEMPRE devuelve un array.
   const filterItemsByRole = (
     items: (MenuItem | ChildItem)[] | undefined
   ): (MenuItem | ChildItem)[] => {
@@ -23,6 +23,7 @@ const SidebarLayout = () => {
       return [];
     }
 
+    // El resto de la lógica ya era correcta, pero ahora TypeScript la entiende.
     return items
       .filter((item) => {
         const isPublic = !item.roles;
@@ -35,14 +36,6 @@ const SidebarLayout = () => {
           return { ...item, children: filterItemsByRole(item.children) };
         }
         return item;
-      })
-      // Opcional: Filtra las secciones que quedaron vacías
-      .filter(item => {
-        // Si es un heading (MenuItem) y ya no tiene hijos, no lo muestres.
-        if (item.heading && (!item.children || item.children.length === 0)) {
-            return false;
-        }
-        return true;
       });
   };
 
@@ -65,7 +58,6 @@ const SidebarLayout = () => {
           <SimpleBar className="h-[calc(100vh_-_130px)]">
             <Sidebar.Items className="px-5 mt-2">
               <Sidebar.ItemGroup className="sidebar-nav hide-menu">
-                {/* --- LÓGICA DE RENDER DE 'DEVELOP' (Más segura) --- */}
                 {filteredSidebarContent.map((item, index) =>
                   'heading' in item ? (
                     <div className="caption" key={item.heading || index}>
@@ -73,10 +65,7 @@ const SidebarLayout = () => {
                         <h5 className="text-link dark:text-white/70 caption font-semibold leading-6 tracking-widest text-xs pb-2 uppercase">
                           {item.heading}
                         </h5>
-                        
-                        {/* --- !! ESTA ES LA CORRECCIÓN CLAVE !! --- */}
-                        {/* No volvemos a filtrar. 'item.children' ya viene filtrado gracias a la recursión en 'filterItemsByRole' */}
-                        {item.children?.map((child, childIndex) => (
+                        {filterItemsByRole(item.children).map((child, childIndex) => (
                           <React.Fragment key={child.id || childIndex}>
                             {child.children ? (
                               <div className="collpase-items">
