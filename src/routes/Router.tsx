@@ -6,6 +6,9 @@ import { useUser } from '../contexts/UserContext';
 
 const FullLayout = Loadable(lazy(() => import('../layouts/full/FullLayout')));
 const BlankLayout = Loadable(lazy(() => import('../layouts/blank/BlankLayout')));
+const Form = Loadable(lazy(() => import("../views/forms/Form")));
+const CreateEvent = Loadable(lazy(() => import("../views/Eventos/CreateEvent"))); // Cambiado
+const ListEvents = Loadable(lazy(() => import("../views/Eventos/ListEvents"))); // Nueva importación
 
 const Dashboard = Loadable(lazy(() => import('../views/dashboards/Dashboard')));
 const MiPerfil = Loadable(lazy(() => import('../views/perfil/MiPerfil')));
@@ -31,6 +34,9 @@ const Router = [
         element: <FullLayout />,
         children: [
           { path: '/', element: <Dashboard /> },
+          { path: '/ui/form', exact: true, element: <Form/> },
+          { path: '/eventos/crear', exact: true, element: <CreateEvent/> },   // Cambiado
+          { path: '/eventos/listar', exact: true, element: <ListEvents/> }, // Nueva ruta
           { path: 'perfil', element: <MiPerfil /> },
         ],
       },

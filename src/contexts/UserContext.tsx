@@ -6,6 +6,7 @@ interface Profile {
   id: string;
   nombre1: string;
   apellido1: string;
+  rol: 'administrador' | 'general'; // Añadir el campo rol
 }
 
 interface UserContextType {
@@ -32,7 +33,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       if (session?.user) {
         const { data: profileData } = await supabase
           .from('perfiles')
-          .select('id, nombre1, apellido1')
+          .select('id, nombre1, apellido1, rol') // Incluir 'rol' en la selección
           .eq('id', session.user.id)
           .single();
         setProfile(profileData);
