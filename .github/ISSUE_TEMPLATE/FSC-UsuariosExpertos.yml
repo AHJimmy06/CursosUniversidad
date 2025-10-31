@@ -1,0 +1,124 @@
+name: 💻 FSC (Usuarios Expertos)
+description: Solicitud de cambio detallada para desarrolladores y equipo técnico.
+title: "[FSC-Experto]: "
+labels: ["FSC-Experto", "1 - Pendiente Revisión"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Proyecto:** CursosUniversidad
+        *(El N° de Cambio se asignará automáticamente al crear la solicitud).*
+
+  - type: fieldset
+    label: Sección 1: Información General y Justificación
+    fields:
+      - type: input
+        id: titulo-cambio
+        attributes:
+          label: Título Descriptivo del Cambio
+          placeholder: "Ej: Añadir campo de 'avatar' al perfil de usuario"
+        validations:
+          required: true
+
+      - type: input
+        id: solicitado-por
+        attributes:
+          label: Solicitado por (Nombre y Rol)
+          placeholder: "Ej: Ana Pérez (Diseñadora UX)"
+        validations:
+          required: true
+
+      - type: input
+        id: email
+        attributes:
+          label: Información de Contacto (Correo Electrónico)
+        validations:
+          required: false
+
+      - type: input
+        id: telefono
+        attributes:
+          label: Información de Contacto (Teléfono)
+        validations:
+          required: false
+
+      - type: input
+        id: fecha-solicitud
+        attributes:
+          label: Fecha de Solicitud
+          description: "Puedes usar el formato AAAA-MM-DD"
+          placeholder: "Ej: 2025-10-30"
+        validations:
+          required: true
+
+      - type: textarea
+        id: descripcion-cambio
+        attributes:
+          label: Descripción Detallada del Cambio
+        validations:
+          required: true
+
+      - type: textarea
+        id: motivo-cambio
+        attributes:
+          label: Motivo y Justificación del Cambio
+        validations:
+          required: true
+
+      - type: dropdown
+        id: tipo-cambio
+        attributes:
+          label: Tipo de Cambio
+          options:
+            - Nuevo Requerimiento
+            - Cambio a Requisito Existente
+            - Defecto/Error
+        validations:
+          required: true
+
+      - type: dropdown
+        id: prioridad
+        attributes:
+          label: Prioridad Solicitada
+          options:
+            - 1 - Alta
+            - 2 - Media
+            - 3 - Baja
+        validations:
+          required: true
+
+  - type: fieldset
+    label: Sección 2: Análisis de Impacto (Usuarios Expertos)
+    fields:
+      - type: input
+        id: fecha-requerida
+        attributes:
+          label: Fecha Requerida de Implementación
+          description: "Fecha límite técnica (AAAA-MM-DD)"
+          placeholder: "Ej: 2025-11-15"
+        validations:
+          required: false
+
+      - type: textarea
+        id: impacto-entregables
+        attributes:
+          label: Impacto en Entregables o Funcionalidades
+        validations:
+          required: false
+
+      - type: textarea
+        id: impacto-no-realizar
+        attributes:
+          label: Impacto de NO Realizar el Cambio
+        validations:
+          required: false
+
+      - type: textarea
+        id: elementos-configuracion
+        attributes:
+          label: Elementos de Configuración Afectados
+          description: "Listar archivos, componentes, módulos, o tablas de BDD afectadas."
+          placeholder: "Ej: /api/routes.js, /views/Profile.vue, BDD (tabla 'users')"
+        validations:
+          required: false

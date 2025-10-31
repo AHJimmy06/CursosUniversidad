@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button, Label, TextInput, Alert } from "flowbite-react";
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../../../utils/supabaseClient";
 
 const validarCedulaEcuador = (identificacion: string): boolean => {
@@ -30,11 +30,12 @@ const AuthRegister = () => {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
+    confirmPassword: "",
     nombre1: "",
     nombre2: "",
     apellido1: "",
     apellido2: "",
-    cedula: "", // Usado para Identificación
+    cedula: "",
     telefono: "",
     fecha_nacimiento: "",
   });
@@ -81,7 +82,6 @@ const AuthRegister = () => {
         return;
     }
 
-    // Lógica de Identificación Flexible: Si son 10 dígitos numéricos, debe ser una Cédula válida.
     const esNumerico = /^\d+$/.test(identificacionLimpia);
     if (identificacionLimpia.length === 10 && esNumerico) {
         if (!validarCedulaEcuador(identificacionLimpia)) {
@@ -93,13 +93,16 @@ const AuthRegister = () => {
         return;
     }
 
-
     if (telefonoLimpio.length !== 10) {
       setError("El número de teléfono debe tener 10 dígitos.");
       return;
     }
     if (formData.password.length < 6) {
       setError("La contraseña debe tener al menos 6 caracteres.");
+      return;
+    }
+    if (formData.password !== formData.confirmPassword) {
+      setError("Las contraseñas no coinciden.");
       return;
     }
 
@@ -218,10 +221,16 @@ const AuthRegister = () => {
           <TextInput id="email" name="email" type="email" required onChange={handleChange} value={formData.email} />
         </div>
 
-        <div className="mb-6">
-          <Label htmlFor="password" value="Contraseña" />
-          <TextInput id="password" name="password" type="password" required onChange={handleChange} value={formData.password} minLength={6} />
-          <p className="mt-1 text-sm text-gray-500">Mínimo 6 caracteres.</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div>
+            <Label htmlFor="password" value="Contraseña" />
+            <TextInput id="password" name="password" type="password" required onChange={handleChange} value={formData.password} minLength={6} />
+            <p className="mt-1 text-sm text-gray-500">Mínimo 6 caracteres.</p>
+          </div>
+          <div>
+            <Label htmlFor="confirmPassword" value="Confirmar Contraseña" />
+            <TextInput id="confirmPassword" name="confirmPassword" type="password" required onChange={handleChange} value={formData.confirmPassword} minLength={6} />
+          </div>
         </div>
 
         <Button color="primary" type="submit" className="w-full" disabled={loading || !!successMessage}>

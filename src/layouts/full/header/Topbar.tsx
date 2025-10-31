@@ -1,5 +1,5 @@
 import { Icon } from "@iconify/react/dist/iconify.js";
-import { Link } from "react-router";
+import { Link } from "react-router-dom";
 import { Dropdown } from "flowbite-react/components/Dropdown";
 
 
@@ -65,4 +65,4 @@ const Topbar = () => {
   )
 }
 
-export default Topbar
+export default Topbar;

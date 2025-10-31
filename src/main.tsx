@@ -4,7 +4,6 @@ import './css/globals.css'
 import App from './App.tsx'
 import Spinner from './views/spinner/Spinner.tsx'
 
-
 createRoot(document.getElementById('root')!).render(
 <Suspense fallback={<Spinner />}>
         <App />
