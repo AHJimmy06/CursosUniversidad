@@ -170,7 +170,7 @@ const ConfiguracionPage = () => {
         </div>
         
         <div className="pt-4">
-          <Button onClick={handleSave} isProcessing={saving}>Guardar Cambios</Button>
+          <Button color="primary" onClick={handleSave} isProcessing={saving}>Guardar Cambios</Button>
         </div>
       </div>
     </div>
