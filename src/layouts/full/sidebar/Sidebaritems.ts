@@ -94,6 +94,14 @@ const SidebarContent: MenuItem[] = [
             roles: ['administrador'],
           }
         ]
+      },
+      {
+        name: "Configuración",
+        icon: "solar:settings-line-duotone", // Un ícono apropiado
+        id: uniqueId(),
+        url: "/configuracion", // La ruta para la nueva página
+        isPro: false,
+        roles: ['administrador'], // ¡Crucial para la seguridad!
       }
     ]
   }

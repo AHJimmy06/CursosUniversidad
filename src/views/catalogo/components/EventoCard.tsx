@@ -27,7 +27,7 @@ const EventoCard: React.FC<EventoCardProps> = ({ evento }) => {
       
       <div className="p-4 flex-grow flex flex-col">
         <div className="flex justify-between items-start mb-2">
-          <Badge color="cyan" size="sm" className="capitalize">
+          <Badge color="lightinfo" size="sm" className="capitalize">
             {evento.tipo?.replace('_', ' ') || 'Evento'}
           </Badge>
           <Badge color={evento.es_pagado ? 'warning' : 'success'}>
@@ -41,7 +41,7 @@ const EventoCard: React.FC<EventoCardProps> = ({ evento }) => {
           {evento.descripcion || 'Sin descripción disponible.'}
         </p>
         <Link to={`/evento/${evento.id}`} className="mt-auto">
-          <Button color="blue" className="w-full">
+          <Button color="primary" className="w-full">
             Ver más detalles
           </Button>
         </Link>
