@@ -95,6 +95,23 @@ const SidebarContent: MenuItem[] = [
           }
         ]
       },
+      
+      {
+        name: "Docente",
+        icon: "solar:user-id-line-duotone",
+        id: uniqueId(),
+        url: "/docente",
+        isPro: false,
+        children: [
+          {
+            name: "Mis Eventos",
+            icon: "solar:list-bold",
+            id: uniqueId(),
+            url: "/docente/eventos",
+            isPro: false,
+          }
+        ]
+      },
       {
         name: "Configuración",
         icon: "solar:settings-line-duotone", // Un ícono apropiado

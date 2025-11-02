@@ -21,6 +21,8 @@ const Login = Loadable(lazy(() => import('../views/auth/login/Login')));
 const Register = Loadable(lazy(() => import('../views/auth/register/Register')));
 const Error = Loadable(lazy(() => import('../views/auth/error/Error')));
 const ConfiguracionPage = Loadable(lazy(() => import('../views/Apariencia/configuracion')));
+const GestionEstudiantes = Loadable(lazy(() => import('../views/docente/GestionEstudiantes')));
+const DocenteEventos = Loadable(lazy(() => import('../views/docente/DocenteEventos')));
 
 const AuthRoutes = () => {
   const { user, loading, isLoggingIn } = useUser();
@@ -47,6 +49,8 @@ const Router = [
           { path: '/usuarios/crear', exact: true, element: <CreateUserPage/> },
           { path: 'perfil', element: <MiPerfil /> },
           { path: '/configuracion', exact: true, element: <ConfiguracionPage /> },
+          { path: '/docente/eventos', exact: true, element: <DocenteEventos /> },
+          { path: '/docente/gestion-estudiantes/:cursoId', exact: true, element: <GestionEstudiantes /> },
         ],
       },
     ],
