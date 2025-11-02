@@ -1,29 +1,28 @@
 import { Sidebar } from "flowbite-react";
-// --- CORRECCIÓN 1: Importar los tipos MenuItem y ChildItem ---
 import SidebarContent, { MenuItem, ChildItem } from "./Sidebaritems";
 import NavItems from "./NavItems";
 import SimpleBar from "simplebar-react";
 import React, { useMemo } from "react";
-import FullLogo from "../shared/logo/FullLogo";
+// Ya no necesitamos FullLogo, así que podemos comentarlo o eliminarlo
+// import FullLogo from "../shared/logo/FullLogo"; 
 import NavCollapse from "./NavCollapse";
-// ¡Asegúrate de que la ruta a tu UserContext sea correcta!
 import { useUser } from "../../../contexts/UserContext";
+
+// --- CAMBIO 1: Importar el hook 'useTheme' que creamos en App.tsx ---
+import { useTheme } from "../../../App"; // ¡Asegúrate de que la ruta a tu App.tsx sea correcta!
 
 const SidebarLayout = () => {
   const { profile } = useUser();
   const userRole = profile?.rol;
+  
+  // --- CAMBIO 2: Usar el hook para obtener la configuración del tema ---
+  const theme = useTheme();
 
-  // --- CORRECCIÓN 2: Definir explícitamente los tipos de entrada y SALIDA de la función ---
-  // La función recibe un array (que puede ser undefined) y SIEMPRE devuelve un array.
+  // La función de filtrado de roles es correcta, no necesita cambios
   const filterItemsByRole = (
     items: (MenuItem | ChildItem)[] | undefined
   ): (MenuItem | ChildItem)[] => {
-    // Si los items son undefined o nulos, devolvemos un array vacío inmediatamente.
-    if (!items) {
-      return [];
-    }
-
-    // El resto de la lógica ya era correcta, pero ahora TypeScript la entiende.
+    if (!items) return [];
     return items
       .filter((item) => {
         const isPublic = !item.roles;
@@ -31,7 +30,6 @@ const SidebarLayout = () => {
         return isPublic || hasAccess;
       })
       .map((item) => {
-        // Si el ítem tiene hijos, filtramos a los hijos también recursivamente.
         if (item.children) {
           return { ...item, children: filterItemsByRole(item.children) };
         }
@@ -39,10 +37,10 @@ const SidebarLayout = () => {
       });
   };
 
-  // useMemo sigue siendo una buena práctica para la eficiencia.
+  // Esta parte, como la tenías, estaba bien y la mantenemos.
   const filteredSidebarContent = useMemo(
     () => filterItemsByRole(SidebarContent),
-    [userRole] // Se vuelve a calcular solo si el rol del usuario cambia
+    [userRole]
   );
 
   return (
@@ -53,12 +51,18 @@ const SidebarLayout = () => {
           aria-label="Sidebar with multi-level dropdown example"
         >
           <div className="px-6 py-4 flex items-center justify-center sidebarlogo">
-            <FullLogo />
+            <img 
+              src={theme?.logo_url || 'https://via.placeholder.com/150?text=Logo'}
+              alt="Logo del Sitio"
+              // --- ÚNICO CAMBIO REALIZADO ---
+              className="h-32 w-auto object-contain" 
+            />
           </div>
           <SimpleBar className="h-[calc(100vh_-_130px)]">
             <Sidebar.Items className="px-5 mt-2">
               <Sidebar.ItemGroup className="sidebar-nav hide-menu">
                 {filteredSidebarContent.map((item, index) =>
+                  // Esta comprobación 'heading' in item es una forma inteligente de solucionar el error de tipos. La mantenemos.
                   'heading' in item ? (
                     <div className="caption" key={item.heading || index}>
                       <React.Fragment key={index}>

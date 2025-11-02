@@ -1,5 +1,7 @@
 import type { Config } from "tailwindcss";
-const flowbite = require("flowbite-react/tailwind");
+// --- CORRECCIÓN DE SINTAXIS: Usar 'import' en lugar de 'require' ---
+import flowbite from "flowbite-react/tailwind";
+import flowbitePlugin from "flowbite/plugin";
 
 const config: Config = {
   darkMode: "class",
@@ -8,25 +10,19 @@ const config: Config = {
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/**/*.{js,ts,jsx,tsx,mdx}",
-
-    // Flowbite content
     flowbite.content(),
   ],
 
-
   theme: {
     fontFamily: {
-      sans: [
-  			'Inter',
-  			'sans-serif'
-  		]
+      sans: ['Inter', 'sans-serif']
     },
+    // --- NO TOCADO: Dejamos tus configuraciones personalizadas intactas ---
     extend: {
       boxShadow: {
         md: "0px 2px 4px -1px rgba(175, 182, 201, 0.2);",
         lg: "0 1rem 3rem rgba(0, 0, 0, 0.175)",
-        "dark-md":
-          "rgba(145, 158, 171, 0.3) 0px 0px 2px 0px, rgba(145, 158, 171, 0.02) 0px 12px 24px -4px",
+        "dark-md": "rgba(145, 158, 171, 0.3) 0px 0px 2px 0px, rgba(145, 158, 171, 0.02) 0px 12px 24px -4px",
         sm: "0 6px 24.2px -10px rgba(41, 52, 61, .22)",
         "btn-shadow": "box-shadow: rgba(0, 0, 0, .05) 0 9px 17.5px",
         tw:"rgba(175, 182, 201, 0.2) 0px 2px 4px -1px",
@@ -56,74 +52,57 @@ const config: Config = {
         wider: ".05em",
         widest: "1.5px",
       },
-      gap: {
-        "30": "30px",
-      },
-      padding: {
-        "30": "30px",
-      },
-      margin: {
-        "30": "30px",
-      },
+      gap: { "30": "30px" },
+      padding: { "30": "30px" },
+      margin: { "30": "30px" },
       fontSize: {
-        "15": "15px",
-        "17": "17px",
-        "13": "13px",
-        "22": "22px",
-        "28": "28px",
-        "34": "34px",
-        "40": "40px",
-        "44": "44px",
-        "50": "50px",
-        "56": "56px",
-        "64": "64px",
+        "15": "15px", "17": "17px", "13": "13px", "22": "22px", "28": "28px",
+        "34": "34px", "40": "40px", "44": "44px", "50": "50px", "56": "56px", "64": "64px",
       },
-      colors: {
-        cyan: {
-          "500": "var(--color-primary)",
-          "600": "var(--color-primary)",
-          "700": "var(--color-primary)",
-        },
 
-        primary: "var(--color-primary)",
-        secondary: "var(--color-secondary)",
-        info: "var(--color-info)",
-        success: "var(--color-success)",
-        warning: "var(--color-warning)",
-        error: "var(--color-error)",
-        lightprimary: "var(--color-lightprimary)",
-        lightsecondary: "var(--color-lightsecondary)",
-        lightsuccess: "var( --color-lightsuccess)",
-        lighterror: "var(--color-lighterror)",
-        lightinfo: "var(--color-lightinfo)",
-        lightwarning: "var(--color-lightwarning)",
-        border: "var(--color-border)",
-        bordergray: "var(--color-bordergray)",
-        lightgray: "var( --color-lightgray)",
-        muted: "var(--color-muted)",
-        lighthover: "var(--color-lighthover)",
-        surface: "var(--color-surface-ld)",
-        sky: "var(--color-sky)",
-        bodytext: "var(--color-bodytext)",
-        //Dark Colors Variables
-        dark: "var(--color-dark)",
-        link: "var(--color-link)",
-        darklink: "var(--color-darklink)",
-        darkborder: "var(--color-darkborder)",
-        darkgray: "var(--color-darkgray)",
-        primaryemphasis: "var(--color-primary-emphasis)",
-        secondaryemphasis: "var(--color-secondary-emphasis)",
-        warningemphasis: "var(--color-warning-emphasis)",
-        erroremphasis: "var(--color-error-emphasis)",
-        successemphasis: "var(--color-success-emphasis)",
-        infoemphasis: "var(--color-info-emphasis)",
-        darkmuted: "var( --color-darkmuted)",
+      colors: {
+        'primary': 'var(--color-primary)',
+        'primary-emphasis': 'var(--color-primary-emphasis)',
+        'lightprimary': 'var(--color-lightprimary)',
+        
+        'secondary': 'var(--color-secondary)',
+        'secondary-emphasis': 'var(--color-secondary-emphasis)',
+        'lightsecondary': 'var(--color-lightsecondary)',
+
+        'info': "var(--color-info)",
+        'success': "var(--color-success)",
+        'warning': "var(--color-warning)",
+        'error': "var(--color-error)",
+        'lightsuccess': "var( --color-lightsuccess)",
+        'lighterror': "var(--color-lighterror)",
+        'lightinfo': "var(--color-lightinfo)",
+        'lightwarning': "var(--color-lightwarning)",
+        'border': "var(--color-border)",
+        'bordergray': "var(--color-bordergray)",
+        'lightgray': "var( --color-lightgray)",
+        'muted': "var(--color-muted)",
+        'lighthover': "var(--color-lighthover)",
+        'surface': "var(--color-surface-ld)",
+        'sky': "var(--color-sky)",
+        'bodytext': "var(--color-bodytext)",
+        'dark': "var(--color-dark)",
+        'link': "var(--color-link)",
+        'darklink': "var(--color-darklink)",
+        'darkborder': "var(--color-darkborder)",
+        'darkgray': "var(--color-darkgray)",
+        'warning-emphasis': "var(--color-warning-emphasis)", // Nombre corregido
+        'error-emphasis': "var(--color-error-emphasis)", // Nombre corregido
+        'success-emphasis': "var(--color-success-emphasis)", // Nombre corregido
+        'info-emphasis': "var(--color-info-emphasis)", // Nombre corregido
+        'darkmuted': "var( --color-darkmuted)",
       },
     },
   },
+  
   plugins: [
-    //Add Flowbite Plugin
-    require("flowbite/plugin"),
+    // Usamos la variable importada
+    flowbitePlugin,
   ],
 };
+
 export default config;

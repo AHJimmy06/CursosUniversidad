@@ -20,7 +20,7 @@ const MiPerfil = Loadable(lazy(() => import('../views/perfil/MiPerfil')));
 const Login = Loadable(lazy(() => import('../views/auth/login/Login')));
 const Register = Loadable(lazy(() => import('../views/auth/register/Register')));
 const Error = Loadable(lazy(() => import('../views/auth/error/Error')));
-
+const ConfiguracionPage = Loadable(lazy(() => import('../views/Apariencia/configuracion')));
 
 const AuthRoutes = () => {
   const { user, loading, isLoggingIn } = useUser();
@@ -46,6 +46,7 @@ const Router = [
           { path: '/usuarios/listar', exact: true, element: <UserManagement/> },
           { path: '/usuarios/crear', exact: true, element: <CreateUserPage/> },
           { path: 'perfil', element: <MiPerfil /> },
+          { path: '/configuracion', exact: true, element: <ConfiguracionPage /> },
         ],
       },
     ],
