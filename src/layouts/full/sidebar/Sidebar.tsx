@@ -12,7 +12,7 @@ import { useUser } from "../../../contexts/UserContext";
 import { useTheme } from "../../../App"; // ¡Asegúrate de que la ruta a tu App.tsx sea correcta!
 
 const SidebarLayout = () => {
-  const { profile } = useUser();
+  const { profile, isDocente } = useUser();
   const userRole = profile?.rol;
   
   // --- CAMBIO 2: Usar el hook para obtener la configuración del tema ---
@@ -25,6 +25,9 @@ const SidebarLayout = () => {
     if (!items) return [];
     return items
       .filter((item) => {
+        if (item.name === 'Docente') {
+          return isDocente;
+        }
         const isPublic = !item.roles;
         const hasAccess = userRole && item.roles?.includes(userRole);
         return isPublic || hasAccess;
@@ -40,7 +43,7 @@ const SidebarLayout = () => {
   // Esta parte, como la tenías, estaba bien y la mantenemos.
   const filteredSidebarContent = useMemo(
     () => filterItemsByRole(SidebarContent),
-    [userRole]
+    [userRole, isDocente]
   );
 
   return (

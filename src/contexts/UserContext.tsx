@@ -14,6 +14,7 @@ interface UserContextType {
   profile: Profile | null;
   loading: boolean;
   isLoggingIn: boolean;
+  isDocente: boolean;
   setIsLoggingIn: (isLoggingIn: boolean) => void;
 }
 
@@ -24,6 +25,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isDocente, setIsDocente] = useState(false);
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -37,6 +39,13 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           .eq('id', session.user.id)
           .single();
         setProfile(profileData);
+
+        const { data: docenteData } = await supabase
+          .from('Eventos')
+          .select('docente_id')
+          .eq('docente_id', session.user.id)
+          .single();
+        setIsDocente(!!docenteData);
       }
       setLoading(false);
     };
@@ -62,6 +71,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     profile,
     loading,
     isLoggingIn,
+    isDocente,
     setIsLoggingIn,
   };
 
