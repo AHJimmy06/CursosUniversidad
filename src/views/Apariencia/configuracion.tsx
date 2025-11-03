@@ -3,7 +3,7 @@ import { supabase } from '../../utils/supabaseClient';
 import { useUser } from '../../contexts/UserContext';
 import { Button, Label, TextInput, Alert } from 'flowbite-react';
 
-// Tipos simplificados (solo primario y secundario)
+// hola
 type ColorConfig = {
   primario: string;
   secundario: string;
@@ -168,7 +168,7 @@ const ConfiguracionPage = () => {
             <TextInput id="lightsecondary" type="color" value={config.colores.lightsecondary} onChange={handleChange} />
             <TextInput id="lightsecondary" type="text" value={config.colores.lightsecondary} onChange={handleChange} />
         </div>
-        
+
         <div className="pt-4">
           <Button color="primary" onClick={handleSave} isProcessing={saving}>Guardar Cambios</Button>
         </div>
