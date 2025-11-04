@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../../utils/supabaseClient';
 import { Evento } from '../../types/eventos';
 import { Alert, Spinner, Card, Badge, Button } from 'flowbite-react';
@@ -7,6 +7,7 @@ import { HiCalendar, HiOutlineClock, HiUser, HiIdentification, HiOutlineSparkles
 
 const EventoDetalle: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [evento, setEvento] = useState<Evento | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -152,6 +153,7 @@ const EventoDetalle: React.FC = () => {
             color={isRegistrationOpen ? 'success' : 'gray'} 
             disabled={!isRegistrationOpen}
             size="lg"
+            onClick={() => navigate(`/evento/${evento.id}/inscripcion`)}
           >
             {registrationMessage}
           </Button>

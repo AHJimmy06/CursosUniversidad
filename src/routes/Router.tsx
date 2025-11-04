@@ -13,6 +13,7 @@ const UserManagement = Loadable(lazy(() => import("../views/Usuarios/UserManagem
 const CreateUserPage = Loadable(lazy(() => import("../views/Usuarios/CreateUserPage")));
 const Catalogo = Loadable(lazy(() => import('../views/catalogo/Catalogo')));
 const EventoDetalle = Loadable(lazy(() => import('../views/eventoDetalle/EventoDetalle')));
+const InscripcionWizard = Loadable(lazy(() => import('../views/Matricula/InscripcionWizard')));
 
 const Dashboard = Loadable(lazy(() => import('../views/dashboards/Dashboard')));
 const MiPerfil = Loadable(lazy(() => import('../views/perfil/MiPerfil')));
@@ -42,6 +43,7 @@ const Router = [
           { path: '/', element: <Dashboard /> },
           { path: '/catalogo', exact: true, element: <Catalogo /> },
           { path: '/evento/:id', exact: true, element: <EventoDetalle /> },
+          { path: '/evento/:id/inscripcion', exact: true, element: <InscripcionWizard /> },
           { path: '/ui/form', exact: true, element: <Form/> },
           { path: '/eventos/crear', exact: true, element: <CreateEvent/> },
           { path: '/eventos/listar', exact: true, element: <ListEvents/> },
