@@ -38,6 +38,7 @@ const GestionEstudiantes: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatingPayment, setUpdatingPayment] = useState<Record<number, boolean>>({});
+  const [eventoNombre, setEventoNombre] = useState<string>('');
   const { cursoId } = useParams<{ cursoId: string }>();
   const { user } = useUser();
 
@@ -48,10 +49,22 @@ const GestionEstudiantes: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
+        // Traer nombre del evento/curso para mostrarlo en la cabecera y filas
+        const { data: evento, error: eventoError } = await supabase
+          .from('Eventos')
+          .select('id, nombre')
+          .eq('id', Number(cursoId))
+          .single();
+        if (eventoError) {
+          console.warn('No se pudo obtener el nombre del curso', eventoError);
+        }
+        const nombreCurso = (evento as any)?.nombre ?? String(cursoId);
+        setEventoNombre(nombreCurso);
+
         const { data: inscripciones, error: errorInscripciones } = await supabase
           .from('inscripciones')
           .select('*')
-          .eq('evento_id', cursoId);
+          .eq('evento_id', Number(cursoId));
 
         if (errorInscripciones) throw errorInscripciones;
 
@@ -79,7 +92,7 @@ const GestionEstudiantes: React.FC = () => {
             id: inscripcion.id,
             nombre: `${perfil?.nombre1 ?? ''} ${perfil?.apellido1 ?? ''}`.trim(),
             email: perfil?.email ?? '',
-            curso: String(cursoId),
+            curso: nombreCurso,
             notaFinal: inscripcion.nota_final,
             asistencia: inscripcion.asistencia,
             pago_id: pago?.id,
@@ -260,12 +273,18 @@ const GestionEstudiantes: React.FC = () => {
 
   return (
     <div className="overflow-x-auto">
-      <h1 className="text-3xl font-bold mb-4">Gestión de Estudiantes</h1>
+      <div className="mb-4">
+        <h1 className="text-3xl font-bold">Gestión de Estudiantes</h1>
+        {eventoNombre && (
+          <p className="text-gray-600 mt-1">Curso: <span className="font-medium">{eventoNombre}</span></p>
+        )}
+      </div>
       {error && <Alert color="failure" icon={HiInformationCircle} className="mb-4">{error}</Alert>}
       <Table hoverable>
         <Table.Head>
           <Table.HeadCell>Estudiante</Table.HeadCell>
           <Table.HeadCell>Email</Table.HeadCell>
+          <Table.HeadCell>Curso</Table.HeadCell>
           <Table.HeadCell>Nota Final</Table.HeadCell>
           <Table.HeadCell>Asistencia (%)</Table.HeadCell>
           <Table.HeadCell>Estado Pago</Table.HeadCell>
@@ -278,6 +297,7 @@ const GestionEstudiantes: React.FC = () => {
                 {est.nombre}
               </Table.Cell>
               <Table.Cell>{est.email}</Table.Cell>
+              <Table.Cell>{est.curso}</Table.Cell>
               <Table.Cell>
                 <TextInput
                   type="number"

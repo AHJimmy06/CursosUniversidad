@@ -32,6 +32,7 @@ type Pago = {
 // Estados (ajusta a tu enum estado_inscripcion en la BD)
 const INS_STATE_PEND_PAGO = 'pendiente_pago';
 const INS_STATE_PEND_REVISION = 'pendiente_revision';
+const INS_STATE_CONFIRMADA = 'confirmada';
 
 // Config: nombres de buckets de Storage
 // Recomendado: requisitos en 'eventos' (o tu bucket público) y pagos en 'comprobantes-pago' PRIVADO
@@ -80,7 +81,7 @@ const InscripcionWizard: React.FC = () => {
         const { data: eventoData, error: evErr } = await supabase
           .from('Eventos')
           .select('*')
-          .eq('id', id)
+          .eq('id', Number(id))
           .single();
         if (evErr) throw evErr;
         setEvento(eventoData as Evento);
@@ -89,27 +90,42 @@ const InscripcionWizard: React.FC = () => {
         const { data: reqData, error: reqErr } = await supabase
           .from('requisitos')
           .select('*')
-          .eq('evento_id', id);
+          .eq('evento_id', Number(id));
         if (reqErr) throw reqErr;
   const reqs = (reqData || []) as Requisito[];
   setRequisitos(reqs);
 
-        // 3) Asegurar que exista la inscripción
-        const { data: inscrExist } = await supabase
+        // 3) Asegurar que exista la inscripción (sin duplicados)
+        // En lugar de maybeSingle (que falla si hay múltiples), obtenemos todas y escogemos la más reciente según prioridad de estado.
+        const { data: inscrRows, error: inscrErr } = await supabase
           .from('inscripciones')
-          .select('*')
+          .select('id, usuario_id, evento_id, estado, fecha_inscripcion')
           .eq('usuario_id', user.id)
-          .eq('evento_id', id)
-          .maybeSingle();
+          .eq('evento_id', Number(id));
+        if (inscrErr) throw inscrErr;
 
-        let insc = inscrExist as Inscripcion | null;
+        const rows = (inscrRows || []) as Inscripcion[];
+        const nonRejected = rows.filter((r) => r.estado !== 'rechazada');
+        let insc: Inscripcion | null = null;
+        // Preferir una confirmada si existe
+        const confirmed = nonRejected.filter((r) => r.estado === INS_STATE_CONFIRMADA);
+        if (confirmed.length > 0) {
+          insc = confirmed.sort((a, b) => b.id - a.id)[0];
+        } else if (nonRejected.length > 0) {
+          // Tomar la inscripción más reciente por id
+          insc = nonRejected.sort((a, b) => b.id - a.id)[0];
+        } else if (rows.length > 0) {
+          // Existen solo rechazadas: permitimos crear una nueva
+          insc = null;
+        }
+
         if (!insc) {
-          const { data: inscInsert, error: inscErr } = await supabase
+          const { data: inscInsert, error: inscErr2 } = await supabase
             .from('inscripciones')
             .insert({ usuario_id: user.id, evento_id: Number(id) })
             .select()
             .single();
-          if (inscErr) throw inscErr;
+          if (inscErr2) throw inscErr2;
           insc = inscInsert as Inscripcion;
         }
         setInscripcion(insc);
@@ -482,6 +498,7 @@ const InscripcionWizard: React.FC = () => {
 
   if (!evento || !inscripcion) return null;
 
+  const isConfirmed = inscripcion.estado === INS_STATE_CONFIRMADA;
   const requisitosPendientes = requisitos.filter(r => !subidosReq[r.id]);
 
   return (
@@ -495,6 +512,20 @@ const InscripcionWizard: React.FC = () => {
           <Badge color={isPaid ? 'warning' : 'success'}>{isPaid ? `Pago: $${evento.costo ?? 0}` : 'Gratuito'}</Badge>
         </div>
 
+        {isConfirmed && (
+          <div className="mt-4 space-y-4">
+            <Alert color="success" icon={HiCheckCircle}>
+              Tu inscripción ya está confirmada. No es posible generar una nueva inscripción para este evento.
+            </Alert>
+            <div className="flex gap-2 flex-wrap">
+              <Button color="success" onClick={generateReceiptPdf}>Descargar comprobante de registro</Button>
+              <Button color="blue" onClick={() => navigate(`/evento/${evento.id}`)}>Ir al detalle del evento</Button>
+            </div>
+          </div>
+        )}
+
+        {!isConfirmed && (
+        <>
         <div className="mt-4">
           <Progress progress={progressPct} labelProgress color={progressPct === 100 ? 'green' : 'blue'} />
         </div>
@@ -613,6 +644,8 @@ const InscripcionWizard: React.FC = () => {
           <Button color="gray" onClick={() => navigate(-1)}>Volver</Button>
           <Button color="success" onClick={() => navigate(`/evento/${evento.id}`)}>Ir al detalle</Button>
         </div>
+        </>
+        )}
       </Card>
     </div>
   );
