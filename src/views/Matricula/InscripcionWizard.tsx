@@ -4,7 +4,7 @@ import { Alert, Badge, Button, Card, FileInput, Progress, Spinner, Timeline, Too
 import { supabase } from '../../utils/supabaseClient';
 import { useUser } from '../../contexts/UserContext';
 import { Evento } from '../../types/eventos';
-import { HiCheckCircle, HiCloudUpload, HiCreditCard, HiDocumentText, HiExclamation, HiInformationCircle, HiReceiptRefund } from 'react-icons/hi';
+import { HiCheckCircle, HiCreditCard, HiDocumentText, HiExclamation, HiInformationCircle, HiReceiptRefund } from 'react-icons/hi';
 import jsPDF from 'jspdf';
 
 type Requisito = {
@@ -29,10 +29,14 @@ type Pago = {
   estado: string; // enum en BD
 };
 
-// Config: nombres de buckets de Storage (por defecto usamos 'eventos' que ya existe)
-// Puedes definir en .env: VITE_STORAGE_BUCKET_INSCRIPCIONES y VITE_STORAGE_BUCKET_PAGOS si quieres buckets separados
+// Estados (ajusta a tu enum estado_inscripcion en la BD)
+const INS_STATE_PEND_PAGO = 'pendiente_pago';
+const INS_STATE_PEND_REVISION = 'pendiente_revision';
+
+// Config: nombres de buckets de Storage
+// Recomendado: requisitos en 'eventos' (o tu bucket público) y pagos en 'comprobantes-pago' PRIVADO
 const BUCKET_REQUISITOS = (import.meta.env.VITE_STORAGE_BUCKET_INSCRIPCIONES as string) || 'eventos';
-const BUCKET_PAGOS = (import.meta.env.VITE_STORAGE_BUCKET_PAGOS as string) || 'eventos';
+const BUCKET_PAGOS = (import.meta.env.VITE_STORAGE_BUCKET_PAGOS as string) || 'comprobantes-pago';
 
 const InscripcionWizard: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -50,6 +54,7 @@ const InscripcionWizard: React.FC = () => {
   const [uploadingReq, setUploadingReq] = useState<Record<number, boolean>>({});
   const [subidosReq, setSubidosReq] = useState<Record<number, string>>({}); // requisitoId -> url
   const [uploadingPago, setUploadingPago] = useState(false);
+  const [signedPagoUrl, setSignedPagoUrl] = useState<string | null>(null);
 
   const isPaid = !!evento?.es_pagado;
   const paymentApproved = isPaid && (pago?.estado === 'aprobado');
@@ -127,6 +132,12 @@ const InscripcionWizard: React.FC = () => {
             .maybeSingle();
           const pagoRow = (pagoData as Pago) || null;
           setPago(pagoRow);
+          // regenerar signed URL si hay comprobante
+          if (pagoRow?.comprobante_url) {
+            await refreshSignedPagoUrl(pagoRow.comprobante_url);
+          } else {
+            setSignedPagoUrl(null);
+          }
 
           // Actualizar estado si NO hay requisitos
           if ((reqs?.length || 0) === 0) {
@@ -142,6 +153,38 @@ const InscripcionWizard: React.FC = () => {
     bootstrap();
   }, [id, user, loadingUser, navigate]);
 
+  // Genera y guarda un signed URL temporal para el comprobante si el bucket es privado
+  const refreshSignedPagoUrl = async (path: string) => {
+    try {
+      if (!path) { setSignedPagoUrl(null); return; }
+      // Compatibilidad: si viene un URL público antiguo, úsalo directamente
+      if (/^https?:\/\//i.test(path)) {
+        setSignedPagoUrl(path);
+        return;
+      }
+      // Intentar firmar con buckets conocidos (migración): primero el configurado, luego 'eventos'
+      const candidateBuckets = [BUCKET_PAGOS, 'eventos'];
+      for (const bucket of candidateBuckets) {
+        const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 60 * 5);
+        if (!error && data?.signedUrl) {
+          setSignedPagoUrl(data.signedUrl);
+          return;
+        }
+      }
+      // Último recurso: si el bucket es público, intenta publicUrl
+      for (const bucket of candidateBuckets) {
+        const pub = supabase.storage.from(bucket).getPublicUrl(path);
+        if (pub?.data?.publicUrl) {
+          setSignedPagoUrl(pub.data.publicUrl);
+          return;
+        }
+      }
+      setSignedPagoUrl(null);
+    } catch {
+      setSignedPagoUrl(null);
+    }
+  };
+
   const updateInscripcionEstadoNoDocs = async (
     insc: Inscripcion | null,
     p: Pago | null,
@@ -154,9 +197,9 @@ const InscripcionWizard: React.FC = () => {
       let desired: string;
       if (ev.es_pagado) {
         const hasPaidEvidence = !!(p && (p.comprobante_url || p.estado === 'aprobado'));
-        desired = hasPaidEvidence ? 'pendiente_revision' : 'pendiente_pago';
+        desired = hasPaidEvidence ? INS_STATE_PEND_REVISION : INS_STATE_PEND_PAGO;
       } else {
-        desired = 'pendiente_revision';
+        desired = INS_STATE_PEND_REVISION;
       }
 
       if (insc.estado !== desired) {
@@ -206,10 +249,52 @@ const InscripcionWizard: React.FC = () => {
       }
 
       setSubidosReq(prev => ({ ...prev, [requisito.id]: archivo_url }));
+      // Evaluar estado de inscripción cuando hay requisitos
+      if (evento && inscripcion) {
+        await updateInscripcionEstadoWithRequirements(inscripcion, pago, evento, {
+          ...subidosReq,
+          [requisito.id]: archivo_url,
+        });
+      }
     } catch (e: any) {
       setError(e.message || 'Error al subir requisito');
     } finally {
       setUploadingReq(prev => ({ ...prev, [requisito.id]: false }));
+    }
+  };
+
+  // Actualiza estado de inscripcion cuando SÍ existen requisitos
+  const updateInscripcionEstadoWithRequirements = async (
+    insc: Inscripcion,
+    p: Pago | null,
+    ev: Evento,
+    presentados: Record<number, string>
+  ) => {
+    try {
+      // Si el evento es de pago y no hay evidencia de pago -> pendiente_pago
+  const hasPaidEvidence = !!(p && (p.comprobante_url || p.estado === 'aprobado'));
+      const requisitosTotales = requisitos.length;
+      const requisitosSubidos = Object.keys(presentados || {}).length;
+
+      let desired: string | null = null;
+      if (ev.es_pagado && !hasPaidEvidence) {
+        desired = INS_STATE_PEND_PAGO;
+      } else if (requisitosTotales > 0 && requisitosSubidos >= requisitosTotales) {
+        desired = INS_STATE_PEND_REVISION;
+      } else if (!ev.es_pagado) {
+        // Gratuito y con requisitos: si no están todos, mantenemos estado actual; si se completan, pendiente_revision
+        desired = requisitosSubidos >= requisitosTotales ? INS_STATE_PEND_REVISION : null;
+      }
+
+      if (desired && insc.estado !== desired) {
+        const { error } = await supabase
+          .from('inscripciones')
+          .update({ estado: desired })
+          .eq('id', insc.id);
+        if (!error) setInscripcion({ ...insc, estado: desired });
+      }
+    } catch {
+      // noop
     }
   };
 
@@ -224,8 +309,8 @@ const InscripcionWizard: React.FC = () => {
         .from(BUCKET_PAGOS)
         .upload(path, file, { upsert: true, contentType: file.type || 'application/octet-stream' });
       if (upErr) throw upErr;
-      const { data: pub } = supabase.storage.from(BUCKET_PAGOS).getPublicUrl(path);
-      const comprobante_url = pub.publicUrl;
+      // Guardamos la RUTA (path) en DB para usar signed URLs en visualización
+      const comprobante_url = path;
 
       if (pago?.id) {
         const { error: updErr } = await supabase
@@ -235,9 +320,14 @@ const InscripcionWizard: React.FC = () => {
         if (updErr) throw updErr;
         const updatedPago = { ...pago, comprobante_url, estado: 'pendiente' } as Pago;
         setPago(updatedPago);
+        await refreshSignedPagoUrl(comprobante_url);
         // Si no hay requisitos, mover estado a pendiente_revision (se pagó, en revisión)
-        if (requisitos.length === 0 && evento) {
-          await updateInscripcionEstadoNoDocs(inscripcion, updatedPago, evento);
+        if (evento) {
+          if (requisitos.length === 0) {
+            await updateInscripcionEstadoNoDocs(inscripcion, updatedPago, evento);
+          } else {
+            await updateInscripcionEstadoWithRequirements(inscripcion, updatedPago, evento, subidosReq);
+          }
         }
       } else {
         const { data: pagoIns, error: insErr } = await supabase
@@ -248,8 +338,13 @@ const InscripcionWizard: React.FC = () => {
         if (insErr) throw insErr;
         const newPago = pagoIns as Pago;
         setPago(newPago);
-        if (requisitos.length === 0 && evento) {
-          await updateInscripcionEstadoNoDocs(inscripcion, newPago, evento);
+        await refreshSignedPagoUrl(comprobante_url);
+        if (evento) {
+          if (requisitos.length === 0) {
+            await updateInscripcionEstadoNoDocs(inscripcion, newPago, evento);
+          } else {
+            await updateInscripcionEstadoWithRequirements(inscripcion, newPago, evento, subidosReq);
+          }
         }
       }
     } catch (e: any) {
@@ -272,8 +367,13 @@ const InscripcionWizard: React.FC = () => {
         if (error) throw error;
         const updatedPago = { ...pago, estado: 'aprobado' } as Pago;
         setPago(updatedPago);
-        if (requisitos.length === 0 && evento) {
-          await updateInscripcionEstadoNoDocs(inscripcion, updatedPago, evento);
+        if (updatedPago.comprobante_url) await refreshSignedPagoUrl(updatedPago.comprobante_url);
+        if (evento) {
+          if (requisitos.length === 0) {
+            await updateInscripcionEstadoNoDocs(inscripcion, updatedPago, evento);
+          } else {
+            await updateInscripcionEstadoWithRequirements(inscripcion, updatedPago, evento, subidosReq);
+          }
         }
       } else {
         const { data, error } = await supabase
@@ -284,8 +384,13 @@ const InscripcionWizard: React.FC = () => {
         if (error) throw error;
         const newPago = data as Pago;
         setPago(newPago);
-        if (requisitos.length === 0 && evento) {
-          await updateInscripcionEstadoNoDocs(inscripcion, newPago, evento);
+        if (newPago.comprobante_url) await refreshSignedPagoUrl(newPago.comprobante_url);
+        if (evento) {
+          if (requisitos.length === 0) {
+            await updateInscripcionEstadoNoDocs(inscripcion, newPago, evento);
+          } else {
+            await updateInscripcionEstadoWithRequirements(inscripcion, newPago, evento, subidosReq);
+          }
         }
       }
     } catch (e: any) {
@@ -416,16 +521,7 @@ const InscripcionWizard: React.FC = () => {
                   </div>
                   <div className="flex items-center gap-3">
                     <FileInput onChange={(e) => handleUploadRequisito(req, e.target.files?.[0])} />
-                    <Button
-                      color="light"
-                      size="sm"
-                      disabled={uploadingReq[req.id]}
-                      onClick={() => {
-                        // Nada: se sube onChange
-                      }}
-                    >
-                      <HiCloudUpload className="mr-1" /> {uploadingReq[req.id] ? 'Subiendo...' : 'Subir'}
-                    </Button>
+                    {uploadingReq[req.id] && <span className="text-sm text-gray-500">Subiendo...</span>}
                     {subidosReq[req.id] && (
                       <a className="text-blue-600 underline" href={subidosReq[req.id]} target="_blank" rel="noreferrer">Ver archivo</a>
                     )}
@@ -463,13 +559,16 @@ const InscripcionWizard: React.FC = () => {
               <div className="space-y-4">
                 <p>Este evento requiere pago. Sube tu comprobante o usa el simulador de pago.</p>
                   <div className="flex items-center gap-3">
-                    <FileInput onChange={(e) => handleUploadComprobante(e.target.files?.[0])} disabled={paymentApproved} />
-                    <Button color="light" size="sm" onClick={() => { /* subida onChange */ }} disabled={uploadingPago || paymentApproved}>
-                      <HiCloudUpload className="mr-1" /> {uploadingPago ? 'Subiendo...' : 'Subir comprobante'}
-                    </Button>
+                    <FileInput onChange={(e) => handleUploadComprobante(e.target.files?.[0])} disabled={paymentApproved || uploadingPago} />
+                    {uploadingPago && <span className="text-sm text-gray-500">Subiendo...</span>}
                   </div>
                   {pago?.comprobante_url && (
-                    <Alert color="success">Comprobante cargado. Estado de pago: <b className="capitalize">{pago.estado}</b> — <a className="underline" href={pago.comprobante_url || ''} target="_blank" rel="noreferrer">Ver archivo</a></Alert>
+                    <Alert color="success">
+                      Comprobante cargado. Estado de pago: <b className="capitalize">{pago.estado}</b>
+                      {signedPagoUrl ? (
+                        <> — <a className="underline" href={signedPagoUrl} target="_blank" rel="noreferrer">Ver archivo</a></>
+                      ) : null}
+                    </Alert>
                   )}
                   <div className="flex items-center gap-2">
                     <Button color="purple" onClick={handleSimulatedCardPayment} disabled={paymentApproved}>
