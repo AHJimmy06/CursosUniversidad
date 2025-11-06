@@ -40,13 +40,13 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           .single();
         setProfile(profileData);
 
-        const { data: docenteData, error: docenteErr } = await supabase
+        // Determinar si el usuario es docente de al menos un evento
+        // Usamos head+count para evitar errores cuando hay múltiples filas
+        const { count, error: docenteErr } = await supabase
           .from('Eventos')
-          .select('docente_id')
-          .eq('docente_id', session.user.id)
-          .maybeSingle();
-        // maybeSingle evita 406 cuando no hay filas; si no hay match, no es docente
-        setIsDocente(!!docenteData && !docenteErr);
+          .select('id', { count: 'exact', head: true })
+          .eq('docente_id', session.user.id);
+        setIsDocente(!docenteErr && (typeof count === 'number') && count > 0);
       }
       setLoading(false);
     };

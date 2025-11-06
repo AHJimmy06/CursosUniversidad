@@ -57,7 +57,6 @@ const SidebarContent: MenuItem[] = [
             id: uniqueId(),
             url: "/eventos/crear",
             isPro: false,
-            roles: ['administrador'],
           },
           {
             name: "Listar Eventos",
@@ -108,6 +107,13 @@ const SidebarContent: MenuItem[] = [
             icon: "solar:list-bold",
             id: uniqueId(),
             url: "/docente/eventos",
+            isPro: false,
+          },
+          {
+            name: "Solicitudes de Inscripción",
+            icon: "solar:checklist-minimalistic-line-duotone",
+            id: uniqueId(),
+            url: "/docente/solicitudes",
             isPro: false,
           }
         ]
