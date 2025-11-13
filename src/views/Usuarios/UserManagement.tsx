@@ -4,10 +4,12 @@ import { UserProfile } from 'src/types/user';
 import { Alert } from 'flowbite-react';
 import ListUser from './Componentes/ListUser';
 import EditUser from './Componentes/EditUser';
+import { useModal } from 'src/contexts/ModalContext';
 
 interface UserFormData extends Partial<UserProfile> {
   password?: string;
 }
+
 
 const UserManagement = () => {
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -62,7 +64,7 @@ const UserManagement = () => {
     setShowEditModal(true);
   };
 
-  import { useModal } from 'src/contexts/ModalContext';
+
 
 // ... (dentro del componente UserManagement)
   const { showModal } = useModal();
