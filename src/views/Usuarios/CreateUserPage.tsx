@@ -18,7 +18,7 @@ const CreateUserPage = () => {
     email: '',
     fecha_nacimiento: '',
     password: '',
-    rol_usuario: 'general',
+    rol: 'general',
     is_active: true,
   });
   const [alert, setAlert] = useState<{ type: 'success' | 'failure'; message: string } | null>(null);
@@ -48,7 +48,7 @@ const CreateUserPage = () => {
             telefono: formData.telefono,
             email: formData.email,
             fecha_nacimiento: formData.fecha_nacimiento,
-            rol_usuario: formData.rol_usuario,
+            rol: formData.rol,
             is_active: formData.is_active,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
@@ -69,7 +69,7 @@ const CreateUserPage = () => {
         email: '',
         fecha_nacimiento: '',
         password: '',
-        rol_usuario: 'general',
+        rol: 'general',
         is_active: true,
       });
     } catch (error: any) {
@@ -175,8 +175,8 @@ const CreateUserPage = () => {
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
           <Select
-            value={formData.rol_usuario || 'general'}
-            onChange={(e) => handleInputChange('rol_usuario', e.target.value)}
+            value={formData.rol || 'general'}
+            onChange={(e) => handleInputChange('rol', e.target.value)}
             required
           >
             <option value="general">General</option>

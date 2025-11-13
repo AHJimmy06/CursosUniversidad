@@ -15,6 +15,7 @@ interface UserContextType {
   loading: boolean;
   isLoggingIn: boolean;
   isDocente: boolean;
+  isResponsable: boolean;
   setIsLoggingIn: (isLoggingIn: boolean) => void;
 }
 
@@ -26,6 +27,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isDocente, setIsDocente] = useState(false);
+  const [isResponsable, setIsResponsable] = useState(false);
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -41,12 +43,18 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         setProfile(profileData);
 
         // Determinar si el usuario es docente de al menos un evento
-        // Usamos head+count para evitar errores cuando hay múltiples filas
-        const { count, error: docenteErr } = await supabase
+        const { count: docenteCount, error: docenteErr } = await supabase
           .from('Eventos')
           .select('id', { count: 'exact', head: true })
           .eq('docente_id', session.user.id);
-        setIsDocente(!docenteErr && (typeof count === 'number') && count > 0);
+        setIsDocente(!docenteErr && (typeof docenteCount === 'number') && docenteCount > 0);
+
+        // Determinar si el usuario es responsable de al menos un evento
+        const { count: responsableCount, error: responsableErr } = await supabase
+          .from('Eventos')
+          .select('id', { count: 'exact', head: true })
+          .eq('responsable_id', session.user.id);
+        setIsResponsable(!responsableErr && (typeof responsableCount === 'number') && responsableCount > 0);
       }
       setLoading(false);
     };
@@ -73,6 +81,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     loading,
     isLoggingIn,
     isDocente,
+    isResponsable,
     setIsLoggingIn,
   };
 

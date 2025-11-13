@@ -1,167 +1,56 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Alert, Badge, Button, Card, FileInput, Progress, Spinner, Timeline, Tooltip } from 'flowbite-react';
-import { supabase } from '../../utils/supabaseClient';
-import { useUser } from '../../contexts/UserContext';
-import { Evento } from '../../types/eventos';
-import { HiCheckCircle, HiCreditCard, HiDocumentText, HiExclamation, HiInformationCircle, HiReceiptRefund } from 'react-icons/hi';
-import jsPDF from 'jspdf';
+import { Alert, Button, Card, FileInput, Label, Spinner } from 'flowbite-react';
+import { supabase } from 'src/utils/supabaseClient';
+import { useUser } from 'src/contexts/UserContext';
+import { Evento } from 'src/types/eventos';
+import { HiCheckCircle, HiReceiptRefund } from 'react-icons/hi';
 
-type Requisito = {
-  id: number;
-  evento_id: number;
-  descripcion: string;
-  tipo_requisito?: string;
-};
-
-type Inscripcion = {
-  id: number;
-  usuario_id: string;
-  evento_id: number;
-  estado: string; // enum en BD
-  fecha_inscripcion?: string; // para recibo
-};
-
-type Pago = {
-  id: number;
-  inscripcion_id: number;
-  comprobante_url: string | null;
-  estado: string; // enum en BD
-};
-
-// Estados (ajusta a tu enum estado_inscripcion en la BD)
-const INS_STATE_PEND_PAGO = 'pendiente_pago';
-const INS_STATE_PEND_REVISION = 'pendiente_revision';
-const INS_STATE_CONFIRMADA = 'confirmada';
-
-// Config: nombres de buckets de Storage
-// Recomendado: requisitos en 'eventos' (o tu bucket público) y pagos en 'comprobantes-pago' PRIVADO
-const BUCKET_REQUISITOS = (import.meta.env.VITE_STORAGE_BUCKET_INSCRIPCIONES as string) || 'eventos';
 const BUCKET_PAGOS = (import.meta.env.VITE_STORAGE_BUCKET_PAGOS as string) || 'comprobantes-pago';
 
 const InscripcionWizard: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, profile, loading: loadingUser } = useUser();
+  const { user, loading: loadingUser } = useUser();
 
   const [evento, setEvento] = useState<Evento | null>(null);
-  const [requisitos, setRequisitos] = useState<Requisito[]>([]);
-  const [inscripcion, setInscripcion] = useState<Inscripcion | null>(null);
-  const [pago, setPago] = useState<Pago | null>(null);
-
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const [uploadingReq, setUploadingReq] = useState<Record<number, boolean>>({});
-  const [subidosReq, setSubidosReq] = useState<Record<number, string>>({}); // requisitoId -> url
-  const [uploadingPago, setUploadingPago] = useState(false);
-  const [signedPagoUrl, setSignedPagoUrl] = useState<string | null>(null);
-
-  const isPaid = !!evento?.es_pagado;
-  const paymentApproved = isPaid && (pago?.estado === 'aprobado');
-
-  const progressPct = useMemo(() => {
-    const total = requisitos.length + (isPaid ? 1 : 0);
-    if (total === 0) return 100;
-    const cumplidos = Object.keys(subidosReq).length + (pago?.comprobante_url ? 1 : 0);
-    return Math.min(100, Math.round((cumplidos / total) * 100));
-  }, [requisitos.length, subidosReq, pago, isPaid]);
+  const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     const bootstrap = async () => {
+      setLoading(true);
+      setError(null);
       try {
-        if (!id || isNaN(Number(id))) throw new Error('Evento no válido');
-        if (loadingUser) return; // esperar sesión
+        if (!id || isNaN(Number(id))) throw new Error('Evento no válido.');
+        if (loadingUser) return;
         if (!user) {
           navigate('/auth/login');
           return;
         }
 
-        // 1) Cargar evento
         const { data: eventoData, error: evErr } = await supabase
           .from('Eventos')
           .select('*')
           .eq('id', Number(id))
           .single();
+        
         if (evErr) throw evErr;
+        if (!eventoData) throw new Error('El evento no fue encontrado.');
+        if (!eventoData.es_pagado) {
+            // Si el evento es gratuito, redirigir o manejarlo. Por ahora, mostramos error.
+            // Idealmente, la lógica para inscribirse a eventos gratis sería diferente.
+            throw new Error('Este asistente es solo para la inscripción a eventos de pago.');
+        }
+
         setEvento(eventoData as Evento);
 
-        // 2) Cargar requisitos del evento
-        const { data: reqData, error: reqErr } = await supabase
-          .from('requisitos')
-          .select('*')
-          .eq('evento_id', Number(id));
-        if (reqErr) throw reqErr;
-  const reqs = (reqData || []) as Requisito[];
-  setRequisitos(reqs);
-
-        // 3) Asegurar que exista la inscripción (sin duplicados)
-        // En lugar de maybeSingle (que falla si hay múltiples), obtenemos todas y escogemos la más reciente según prioridad de estado.
-        const { data: inscrRows, error: inscrErr } = await supabase
-          .from('inscripciones')
-          .select('id, usuario_id, evento_id, estado, fecha_inscripcion')
-          .eq('usuario_id', user.id)
-          .eq('evento_id', Number(id));
-        if (inscrErr) throw inscrErr;
-
-        const rows = (inscrRows || []) as Inscripcion[];
-        const nonRejected = rows.filter((r) => r.estado !== 'rechazada');
-        let insc: Inscripcion | null = null;
-        // Preferir una confirmada si existe
-        const confirmed = nonRejected.filter((r) => r.estado === INS_STATE_CONFIRMADA);
-        if (confirmed.length > 0) {
-          insc = confirmed.sort((a, b) => b.id - a.id)[0];
-        } else if (nonRejected.length > 0) {
-          // Tomar la inscripción más reciente por id
-          insc = nonRejected.sort((a, b) => b.id - a.id)[0];
-        } else if (rows.length > 0) {
-          // Existen solo rechazadas: permitimos crear una nueva
-          insc = null;
-        }
-
-        if (!insc) {
-          const { data: inscInsert, error: inscErr2 } = await supabase
-            .from('inscripciones')
-            .insert({ usuario_id: user.id, evento_id: Number(id) })
-            .select()
-            .single();
-          if (inscErr2) throw inscErr2;
-          insc = inscInsert as Inscripcion;
-        }
-        setInscripcion(insc);
-
-        // 4) Cargar requisitos ya presentados
-        if (insc) {
-          const { data: reqPres } = await supabase
-            .from('inscripcion_requisitos_presentados')
-            .select('requisito_id, archivo_url')
-            .eq('inscripcion_id', insc.id);
-          const map: Record<number, string> = {};
-          (reqPres || []).forEach((r: any) => { map[r.requisito_id] = r.archivo_url; });
-          setSubidosReq(map);
-
-          // 5) Cargar pago si existe
-          const { data: pagoData } = await supabase
-            .from('pagos')
-            .select('*')
-            .eq('inscripcion_id', insc.id)
-            .maybeSingle();
-          const pagoRow = (pagoData as Pago) || null;
-          setPago(pagoRow);
-          // regenerar signed URL si hay comprobante
-          if (pagoRow?.comprobante_url) {
-            await refreshSignedPagoUrl(pagoRow.comprobante_url);
-          } else {
-            setSignedPagoUrl(null);
-          }
-
-          // Actualizar estado si NO hay requisitos
-          if ((reqs?.length || 0) === 0) {
-            await updateInscripcionEstadoNoDocs(insc, pagoRow, eventoData as Evento);
-          }
-        }
       } catch (e: any) {
-        setError(e.message || 'Error al iniciar inscripción');
+        setError(e.message || 'Error al iniciar el proceso de inscripción.');
       } finally {
         setLoading(false);
       }
@@ -169,483 +58,121 @@ const InscripcionWizard: React.FC = () => {
     bootstrap();
   }, [id, user, loadingUser, navigate]);
 
-  // Genera y guarda un signed URL temporal para el comprobante si el bucket es privado
-  const refreshSignedPagoUrl = async (path: string) => {
-    try {
-      if (!path) { setSignedPagoUrl(null); return; }
-      // Compatibilidad: si viene un URL público antiguo, úsalo directamente
-      if (/^https?:\/\//i.test(path)) {
-        setSignedPagoUrl(path);
-        return;
-      }
-      // Intentar firmar con buckets conocidos (migración): primero el configurado, luego 'eventos'
-      const candidateBuckets = [BUCKET_PAGOS, 'eventos'];
-      for (const bucket of candidateBuckets) {
-        const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 60 * 5);
-        if (!error && data?.signedUrl) {
-          setSignedPagoUrl(data.signedUrl);
-          return;
-        }
-      }
-      // Último recurso: si el bucket es público, intenta publicUrl
-      for (const bucket of candidateBuckets) {
-        const pub = supabase.storage.from(bucket).getPublicUrl(path);
-        if (pub?.data?.publicUrl) {
-          setSignedPagoUrl(pub.data.publicUrl);
-          return;
-        }
-      }
-      setSignedPagoUrl(null);
-    } catch {
-      setSignedPagoUrl(null);
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setReceiptFile(file);
     }
   };
 
-  const updateInscripcionEstadoNoDocs = async (
-    insc: Inscripcion | null,
-    p: Pago | null,
-    ev: Evento | null
-  ) => {
-    try {
-      if (!insc || !ev) return;
-      if (requisitos.length > 0) return; // Solo aplica cuando no hay requisitos
-
-      let desired: string;
-      if (ev.es_pagado) {
-        const hasPaidEvidence = !!(p && (p.comprobante_url || p.estado === 'aprobado'));
-        desired = hasPaidEvidence ? INS_STATE_PEND_REVISION : INS_STATE_PEND_PAGO;
-      } else {
-        desired = INS_STATE_PEND_REVISION;
-      }
-
-      if (insc.estado !== desired) {
-        const { error } = await supabase
-          .from('inscripciones')
-          .update({ estado: desired })
-          .eq('id', insc.id);
-        if (!error) setInscripcion({ ...insc, estado: desired });
-      }
-    } catch (e) {
-      // Silencioso; no bloquear flujo por estado
+  const handleSubmit = async () => {
+    if (!receiptFile || !user || !evento) {
+      setError('Se requiere un archivo de comprobante.');
+      return;
     }
-  };
 
-  const handleUploadRequisito = async (requisito: Requisito, file?: File | null) => {
-    if (!file || !inscripcion) return;
-    setUploadingReq(prev => ({ ...prev, [requisito.id]: true }));
+    setIsSubmitting(true);
+    setError(null);
+
     try {
-      const ext = file.name.split('.').pop();
-      const path = `${inscripcion.evento_id}/${inscripcion.usuario_id}/requisito_${requisito.id}_${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage
-        .from(BUCKET_REQUISITOS)
-        .upload(path, file, { upsert: true, contentType: file.type || 'application/octet-stream' });
-      if (upErr) throw upErr;
-      const { data: pub } = supabase.storage.from(BUCKET_REQUISITOS).getPublicUrl(path);
-      const archivo_url = pub.publicUrl;
-
-      // Insertar o actualizar registro
-      const { data: existente } = await supabase
-        .from('inscripcion_requisitos_presentados')
-        .select('id')
-        .eq('inscripcion_id', inscripcion.id)
-        .eq('requisito_id', requisito.id)
-        .maybeSingle();
-
-      if (existente?.id) {
-        const { error: updErr } = await supabase
-          .from('inscripcion_requisitos_presentados')
-          .update({ archivo_url, estado: 'pendiente' })
-          .eq('id', existente.id);
-        if (updErr) throw updErr;
-      } else {
-        const { error: insErr } = await supabase
-          .from('inscripcion_requisitos_presentados')
-          .insert({ inscripcion_id: inscripcion.id, requisito_id: requisito.id, archivo_url, estado: 'pendiente' });
-        if (insErr) throw insErr;
-      }
-
-      setSubidosReq(prev => ({ ...prev, [requisito.id]: archivo_url }));
-      // Evaluar estado de inscripción cuando hay requisitos
-      if (evento && inscripcion) {
-        await updateInscripcionEstadoWithRequirements(inscripcion, pago, evento, {
-          ...subidosReq,
-          [requisito.id]: archivo_url,
-        });
-      }
-    } catch (e: any) {
-      setError(e.message || 'Error al subir requisito');
-    } finally {
-      setUploadingReq(prev => ({ ...prev, [requisito.id]: false }));
-    }
-  };
-
-  // Actualiza estado de inscripcion cuando SÍ existen requisitos
-  const updateInscripcionEstadoWithRequirements = async (
-    insc: Inscripcion,
-    p: Pago | null,
-    ev: Evento,
-    presentados: Record<number, string>
-  ) => {
-    try {
-      // Si el evento es de pago y no hay evidencia de pago -> pendiente_pago
-  const hasPaidEvidence = !!(p && (p.comprobante_url || p.estado === 'aprobado'));
-      const requisitosTotales = requisitos.length;
-      const requisitosSubidos = Object.keys(presentados || {}).length;
-
-      let desired: string | null = null;
-      if (ev.es_pagado && !hasPaidEvidence) {
-        desired = INS_STATE_PEND_PAGO;
-      } else if (requisitosTotales > 0 && requisitosSubidos >= requisitosTotales) {
-        desired = INS_STATE_PEND_REVISION;
-      } else if (!ev.es_pagado) {
-        // Gratuito y con requisitos: si no están todos, mantenemos estado actual; si se completan, pendiente_revision
-        desired = requisitosSubidos >= requisitosTotales ? INS_STATE_PEND_REVISION : null;
-      }
-
-      if (desired && insc.estado !== desired) {
-        const { error } = await supabase
-          .from('inscripciones')
-          .update({ estado: desired })
-          .eq('id', insc.id);
-        if (!error) setInscripcion({ ...insc, estado: desired });
-      }
-    } catch {
-      // noop
-    }
-  };
-
-  const handleUploadComprobante = async (file?: File | null) => {
-    if (!file || !inscripcion) return;
-    if (paymentApproved) return; // No permitir más cargas si ya está aprobado (simulado o real)
-    setUploadingPago(true);
-    try {
-      const ext = file.name.split('.').pop();
-      const path = `${inscripcion.id}/comprobante_${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage
+      // 1. Subir el archivo
+      const fileExt = receiptFile.name.split('.').pop();
+      const filePath = `${user.id}/${evento.id}/comprobante_${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
         .from(BUCKET_PAGOS)
-        .upload(path, file, { upsert: true, contentType: file.type || 'application/octet-stream' });
-      if (upErr) throw upErr;
-      // Guardamos la RUTA (path) en DB para usar signed URLs en visualización
-      const comprobante_url = path;
+        .upload(filePath, receiptFile);
 
-      if (pago?.id) {
-        const { error: updErr } = await supabase
-          .from('pagos')
-          .update({ comprobante_url, fecha_carga_comprobante: new Date().toISOString(), estado: 'pendiente' })
-          .eq('id', pago.id);
-        if (updErr) throw updErr;
-        const updatedPago = { ...pago, comprobante_url, estado: 'pendiente' } as Pago;
-        setPago(updatedPago);
-        await refreshSignedPagoUrl(comprobante_url);
-        // Si no hay requisitos, mover estado a pendiente_revision (se pagó, en revisión)
-        if (evento) {
-          if (requisitos.length === 0) {
-            await updateInscripcionEstadoNoDocs(inscripcion, updatedPago, evento);
-          } else {
-            await updateInscripcionEstadoWithRequirements(inscripcion, updatedPago, evento, subidosReq);
-          }
-        }
-      } else {
-        const { data: pagoIns, error: insErr } = await supabase
-          .from('pagos')
-          .insert({ inscripcion_id: inscripcion.id, comprobante_url, estado: 'pendiente', fecha_carga_comprobante: new Date().toISOString() })
-          .select('*')
-          .single();
-        if (insErr) throw insErr;
-        const newPago = pagoIns as Pago;
-        setPago(newPago);
-        await refreshSignedPagoUrl(comprobante_url);
-        if (evento) {
-          if (requisitos.length === 0) {
-            await updateInscripcionEstadoNoDocs(inscripcion, newPago, evento);
-          } else {
-            await updateInscripcionEstadoWithRequirements(inscripcion, newPago, evento, subidosReq);
-          }
-        }
-      }
-    } catch (e: any) {
-      setError(e.message || 'Error al subir comprobante');
-    } finally {
-      setUploadingPago(false);
-    }
-  };
+      if (uploadError) throw uploadError;
 
-  const handleSimulatedCardPayment = async () => {
-    if (!inscripcion) return;
-    if (paymentApproved) return; // evitar re-pago
-    try {
-      // Marca el pago como aprobado (simulado)
-      if (pago?.id) {
-        const { error } = await supabase
-          .from('pagos')
-          .update({ estado: 'aprobado', fecha_revision: new Date().toISOString() })
-          .eq('id', pago.id);
-        if (error) throw error;
-        const updatedPago = { ...pago, estado: 'aprobado' } as Pago;
-        setPago(updatedPago);
-        if (updatedPago.comprobante_url) await refreshSignedPagoUrl(updatedPago.comprobante_url);
-        if (evento) {
-          if (requisitos.length === 0) {
-            await updateInscripcionEstadoNoDocs(inscripcion, updatedPago, evento);
-          } else {
-            await updateInscripcionEstadoWithRequirements(inscripcion, updatedPago, evento, subidosReq);
-          }
-        }
-      } else {
-        const { data, error } = await supabase
-          .from('pagos')
-          .insert({ inscripcion_id: inscripcion.id, estado: 'aprobado', fecha_revision: new Date().toISOString() })
-          .select('*')
-          .single();
-        if (error) throw error;
-        const newPago = data as Pago;
-        setPago(newPago);
-        if (newPago.comprobante_url) await refreshSignedPagoUrl(newPago.comprobante_url);
-        if (evento) {
-          if (requisitos.length === 0) {
-            await updateInscripcionEstadoNoDocs(inscripcion, newPago, evento);
-          } else {
-            await updateInscripcionEstadoWithRequirements(inscripcion, newPago, evento, subidosReq);
-          }
-        }
-      }
-    } catch (e: any) {
-      setError(e.message || 'No se pudo simular el pago');
-    }
-  };
+      // 2. Obtener la URL pública
+      const { data: urlData } = supabase.storage.from(BUCKET_PAGOS).getPublicUrl(filePath);
+      const comprobanteUrl = urlData.publicUrl;
 
-  const sanitizeFileName = (s: string) => s.replace(/[^a-zA-Z0-9_\- ]/g, '').replace(/\s+/g, ' ').trim().replace(/\s/g, '_');
-
-  const loadImageAsDataUrl = async (url: string): Promise<string | null> => {
-    try {
-      const res = await fetch(url, { mode: 'cors' });
-      const blob = await res.blob();
-      return await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = () => resolve(null);
-        reader.readAsDataURL(blob);
+      // 3. Llamar a la función RPC para crear la inscripción y el pago
+      const { error: rpcError } = await supabase.rpc('enroll_paid_event', {
+        p_user_id: user.id,
+        p_event_id: evento.id,
+        p_comprobante_url: comprobanteUrl,
       });
-    } catch {
-      return null;
+
+      if (rpcError) throw rpcError;
+
+      // 4. Éxito
+      setSuccess(true);
+
+    } catch (e: any) {
+      setError(e.message || 'Ocurrió un error al finalizar la inscripción.');
+      // Opcional: intentar borrar el archivo subido si la RPC falla
+    } finally {
+      setIsSubmitting(false);
     }
-  };
-
-  const generateReceiptPdf = async () => {
-    if (!evento || !inscripcion) return;
-
-    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-    const pageWidth = doc.internal.pageSize.getWidth();
-
-    // Encabezado
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(18);
-    doc.text('Comprobante de Registro', pageWidth / 2, 20, { align: 'center' });
-
-    // Imagen del curso si existe
-    let y = 30;
-    if (evento.imagen_url) {
-      const dataUrl = await loadImageAsDataUrl(evento.imagen_url);
-      if (dataUrl) {
-        const imgWidth = 60;
-        const imgHeight = 35; // aproximado
-        doc.addImage(dataUrl, 'JPEG', pageWidth - imgWidth - 15, y, imgWidth, imgHeight);
-      }
-    }
-
-    // Datos principales
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(12);
-    const lines = [
-      `N° de Registro: ${inscripcion.id}`,
-      `Curso/Evento: ${evento.nombre}`,
-      `Fecha de inicio: ${evento.fecha_inicio_evento ? new Date(evento.fecha_inicio_evento).toLocaleString('es-EC') : 'No especificada'}`,
-      `Fecha de inscripción: ${inscripcion.fecha_inscripcion ? new Date(inscripcion.fecha_inscripcion).toLocaleString('es-EC') : 'No especificada'}`,
-      `Participante: ${profile ? `${profile.nombre1} ${profile.apellido1}` : (user?.email || '')}`,
-      user?.email ? `Email: ${user.email}` : '',
-      evento.es_pagado ? `Tipo: Pagado  |  Monto: $${evento.costo ?? 0}` : 'Tipo: Gratuito'
-    ].filter(Boolean) as string[];
-
-    y += 5;
-    lines.forEach((t) => {
-      doc.text(t, 15, y);
-      y += 8;
-    });
-
-    // Pie
-    doc.setFontSize(10);
-    doc.text('Este documento es válido como comprobante de registro.', 15, 285);
-
-    const fileName = `${inscripcion.id}_${sanitizeFileName(evento.nombre)}.pdf`;
-    doc.save(fileName);
   };
 
   if (loading || loadingUser) {
-    return (
-      <div className="flex justify-center items-center h-[60vh]">
-        <Spinner size="xl" />
-      </div>
-    );
+    return <div className="flex justify-center items-center h-[60vh]"><Spinner size="xl" /></div>;
   }
 
   if (error) {
+    return <div className="container mx-auto p-4"><Alert color="failure">{error}</Alert></div>;
+  }
+
+  if (success) {
     return (
-      <div className="container mx-auto p-4">
-        <Alert color="failure" icon={HiInformationCircle}>{error}</Alert>
-      </div>
+        <div className="container mx-auto p-4">
+            <Card>
+                <div className="flex flex-col items-center p-8">
+                    <HiCheckCircle className="h-16 w-16 text-green-500 mb-4" />
+                    <h2 className="text-2xl font-semibold mb-2">¡Inscripción Enviada!</h2>
+                    <p className="text-gray-600 text-center mb-6">
+                        Tu solicitud de inscripción y comprobante de pago han sido enviados correctamente. <br/>
+                        El estado de tu inscripción será revisado por un administrador.
+                    </p>
+                    <Button onClick={() => navigate('/estudiante/mis-eventos')}>Ver Mis Eventos</Button>
+                </div>
+            </Card>
+        </div>
     );
   }
 
-  if (!evento || !inscripcion) return null;
-
-  const isConfirmed = inscripcion.estado === INS_STATE_CONFIRMADA;
-  const requisitosPendientes = requisitos.filter(r => !subidosReq[r.id]);
+  if (!evento) return null;
 
   return (
     <div className="container mx-auto p-4">
       <Card>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold">Inscripción a: {evento.nombre}</h1>
-            <p className="text-sm text-gray-600">ID Inscripción: {inscripcion.id}</p>
-          </div>
-          <Badge color={isPaid ? 'warning' : 'success'}>{isPaid ? `Pago: $${evento.costo ?? 0}` : 'Gratuito'}</Badge>
-        </div>
+        <h1 className="text-2xl font-semibold">Inscripción a: {evento.nombre}</h1>
+        <p className="text-lg font-medium text-gray-700">Costo: ${evento.costo}</p>
+        <hr className="my-4" />
 
-        {isConfirmed && (
-          <div className="mt-4 space-y-4">
-            <Alert color="success" icon={HiCheckCircle}>
-              Tu inscripción ya está confirmada. No es posible generar una nueva inscripción para este evento.
-            </Alert>
-            <div className="flex gap-2 flex-wrap">
-              <Button color="success" onClick={generateReceiptPdf}>Descargar comprobante de registro</Button>
-              <Button color="blue" onClick={() => navigate(`/evento/${evento.id}`)}>Ir al detalle del evento</Button>
-            </div>
-          </div>
-        )}
-
-        {!isConfirmed && (
-        <>
-        <div className="mt-4">
-          <Progress progress={progressPct} labelProgress color={progressPct === 100 ? 'green' : 'blue'} />
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-          <Card>
-            <div className="flex items-center gap-2 mb-2">
-              <HiDocumentText />
-              <h2 className="text-lg font-semibold">Paso 1: Subir documentos</h2>
-            </div>
-            {requisitos.length === 0 && (
-              <Alert color="info">Este evento no requiere documentos adicionales.</Alert>
-            )}
-            <div className="space-y-4">
-              {requisitos.map((req) => (
-                <div key={req.id} className="border rounded p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="font-medium">{req.descripcion}</p>
-                    {subidosReq[req.id] ? (
-                      <Badge color="success" icon={HiCheckCircle}>Subido</Badge>
-                    ) : (
-                      <Badge color="gray">Pendiente</Badge>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <FileInput onChange={(e) => handleUploadRequisito(req, e.target.files?.[0])} />
-                    {uploadingReq[req.id] && <span className="text-sm text-gray-500">Subiendo...</span>}
-                    {subidosReq[req.id] && (
-                      <a className="text-blue-600 underline" href={subidosReq[req.id]} target="_blank" rel="noreferrer">Ver archivo</a>
-                    )}
-                  </div>
+        <div className="space-y-4">
+            <div>
+                <div className="flex items-center gap-2 mb-2">
+                    <HiReceiptRefund className="h-6 w-6 text-gray-600" />
+                    <h2 className="text-lg font-semibold">Paso Final: Comprobante de Pago</h2>
                 </div>
-              ))}
-            </div>
-            {requisitosPendientes.length > 0 && (
-              <Alert color="warning" className="mt-3" icon={HiExclamation}>
-                Faltan {requisitosPendientes.length} documento(s) por subir.
-              </Alert>
-            )}
-          </Card>
-
-          <Card>
-            <div className="flex items-center gap-2 mb-2">
-              <HiReceiptRefund />
-              <h2 className="text-lg font-semibold">Paso 2: Matriculación</h2>
-            </div>
-            {!isPaid ? (
-              <div className="space-y-3">
-                <p>El curso/evento es gratuito. Verifica tus datos antes de confirmar tu registro.</p>
-                <div className="text-sm text-gray-700 border rounded p-3">
-                  <p><span className="font-medium">Participante:</span> {profile ? `${profile.nombre1} ${profile.apellido1}` : user?.email}</p>
-                  <p><span className="font-medium">Evento:</span> {evento.nombre}</p>
-                </div>
-                <Tooltip content="Descarga tu comprobante en PDF" placement="top">
-                  <Button color="success" onClick={generateReceiptPdf}>
-                    Generar comprobante de registro
-                  </Button>
-                </Tooltip>
-                <Alert color="info">Tu inscripción queda registrada. La confirmación puede estar sujeta a revisión.</Alert>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <p>Este evento requiere pago. Sube tu comprobante o usa el simulador de pago.</p>
-                  <div className="flex items-center gap-3">
-                    <FileInput onChange={(e) => handleUploadComprobante(e.target.files?.[0])} disabled={paymentApproved || uploadingPago} />
-                    {uploadingPago && <span className="text-sm text-gray-500">Subiendo...</span>}
-                  </div>
-                  {pago?.comprobante_url && (
-                    <Alert color="success">
-                      Comprobante cargado. Estado de pago: <b className="capitalize">{pago.estado}</b>
-                      {signedPagoUrl ? (
-                        <> — <a className="underline" href={signedPagoUrl} target="_blank" rel="noreferrer">Ver archivo</a></>
-                      ) : null}
-                    </Alert>
-                  )}
-                  <div className="flex items-center gap-2">
-                    <Button color="purple" onClick={handleSimulatedCardPayment} disabled={paymentApproved}>
-                      <HiCreditCard className="mr-1" /> {paymentApproved ? 'Pago aprobado' : 'Pagar con tarjeta (simulado)'}
-                    </Button>
-                    <small className="text-gray-500">{paymentApproved ? 'El pago está aprobado; no es posible volver a pagar.' : 'Opcional para pruebas — marca el pago como aprobado'}</small>
-                  </div>
+                <p className="text-sm text-gray-600 mb-2">
+                    Para completar tu inscripción, por favor, sube una imagen o PDF de tu comprobante de pago.
+                </p>
                 <div>
-                  <Button color="success" onClick={generateReceiptPdf}>
-                    Generar comprobante de registro
-                  </Button>
+                    <Label htmlFor="receipt-upload" value="Archivo del Comprobante" />
+                    <FileInput id="receipt-upload" accept="image/*,.pdf" onChange={handleFileChange} required />
                 </div>
-              </div>
-            )}
-          </Card>
+            </div>
         </div>
 
-        <div className="mt-6">
-          <Timeline>
-            <Timeline.Item>
-              <Timeline.Point icon={HiDocumentText} />
-              <Timeline.Content>
-                <Timeline.Time>Paso 1</Timeline.Time>
-                <Timeline.Title>Sube tus documentos</Timeline.Title>
-                <Timeline.Body>Requisitos obligatorios si el evento los define. Estado actual: {Object.keys(subidosReq).length}/{requisitos.length} subidos.</Timeline.Body>
-              </Timeline.Content>
-            </Timeline.Item>
-            <Timeline.Item>
-              <Timeline.Point icon={HiReceiptRefund} />
-              <Timeline.Content>
-                <Timeline.Time>Paso 2</Timeline.Time>
-                <Timeline.Title>{isPaid ? 'Pago y comprobante' : 'Confirmación de registro'}</Timeline.Title>
-                <Timeline.Body>
-                  {isPaid ? 'Sube un comprobante o usa el simulador para completar el proceso.' : 'Genera y guarda tu comprobante de registro.'}
-                </Timeline.Body>
-              </Timeline.Content>
-            </Timeline.Item>
-          </Timeline>
+        <div className="mt-8 flex justify-end gap-4">
+            <Button color="gray" onClick={() => navigate(-1)} disabled={isSubmitting}>
+                Cancelar
+            </Button>
+            <Button 
+                color="primary" 
+                onClick={handleSubmit} 
+                isProcessing={isSubmitting}
+                disabled={!receiptFile || isSubmitting}
+            >
+                Finalizar Inscripción
+            </Button>
         </div>
-
-        <div className="mt-6 flex justify-between">
-          <Button color="gray" onClick={() => navigate(-1)}>Volver</Button>
-          <Button color="success" onClick={() => navigate(`/evento/${evento.id}`)}>Ir al detalle</Button>
-        </div>
-        </>
-        )}
       </Card>
     </div>
   );

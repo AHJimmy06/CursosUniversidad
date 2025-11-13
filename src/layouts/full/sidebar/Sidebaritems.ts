@@ -27,7 +27,7 @@ export interface MenuItem {
 
 const SidebarContent: MenuItem[] = [
   {
-    heading: "INICIO",
+    heading: "Navegación General",
     children: [
       {
         name: "Página Principal",
@@ -35,6 +35,7 @@ const SidebarContent: MenuItem[] = [
         id: uniqueId(),
         url: "/",
         isPro: false,
+        roles: ['administrador'],
       },
       {
         name: "Catálogo de Cursos",
@@ -43,6 +44,11 @@ const SidebarContent: MenuItem[] = [
         url: "/catalogo",
         isPro: false,
       },
+    ],
+  },
+  {
+    heading: "Gestión en Información",
+    children: [
       {
         name: "Eventos",
         icon: "solar:calendar-line-duotone",
@@ -94,40 +100,60 @@ const SidebarContent: MenuItem[] = [
           }
         ]
       },
-      
+    ],
+  },
+  {
+    heading: "Roles",
+    children: [
       {
         name: "Docente",
         icon: "solar:user-id-line-duotone",
         id: uniqueId(),
-        url: "/docente",
+        url: "/docente/eventos",
         isPro: false,
-        children: [
-          {
-            name: "Mis Eventos",
-            icon: "solar:list-bold",
-            id: uniqueId(),
-            url: "/docente/eventos",
-            isPro: false,
-          },
-          {
-            name: "Solicitudes de Inscripción",
-            icon: "solar:checklist-minimalistic-line-duotone",
-            id: uniqueId(),
-            url: "/docente/solicitudes",
-            isPro: false,
-          }
-        ]
       },
       {
-        name: "Configuración",
-        icon: "solar:settings-line-duotone", // Un ícono apropiado
+        name: "Responsable",
+        icon: "solar:user-check-line-duotone",
         id: uniqueId(),
-        url: "/configuracion", // La ruta para la nueva página
+        url: "/responsable/eventos",
         isPro: false,
-        roles: ['administrador'], // ¡Crucial para la seguridad!
-      }
-    ]
-  }
+      },
+      {
+        name: "Estudiante",
+        icon: "solar:user-line-duotone",
+        id: uniqueId(),
+        url: "/estudiante/mis-eventos",
+        isPro: false,
+      },
+    ],
+  },
+  {
+    heading: "Validación",
+    children: [
+      {
+        name: "Validar Carreras",
+        icon: "solar:user-check-rounded-line-duotone",
+        id: uniqueId(),
+        url: "/admin/validar-carreras",
+        isPro: false,
+        roles: ['administrador'],
+      },
+    ],
+  },
+  {
+    heading: "Ajustes del Sistema",
+    children: [
+      {
+        name: "Configuración",
+        icon: "solar:settings-line-duotone",
+        id: uniqueId(),
+        url: "/configuracion",
+        isPro: false,
+        roles: ['administrador'],
+      },
+    ],
+  },
 ];
 
 export default SidebarContent;
