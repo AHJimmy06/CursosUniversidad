@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useUser } from 'src/contexts/UserContext';
 import { supabase } from 'src/utils/supabaseClient';
 
@@ -13,10 +13,19 @@ const initialState = {
 };
 
 const ErrorReport = () => {
-  const { user } = useUser();
+  const { user, profile } = useUser();
   const [formData, setFormData] = useState(initialState);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+  useEffect(() => {
+    if (profile) {
+      setFormData((prevData) => ({
+        ...prevData,
+        solicitadoPor: `${profile.nombre1} ${profile.apellido1}`,
+      }));
+    }
+  }, [profile]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { id, value } = e.target;
@@ -50,7 +59,10 @@ const ErrorReport = () => {
       }
 
       setMessage({ type: 'success', text: '¡Reporte enviado con éxito! Gracias por tu ayuda.' });
-      setFormData(initialState);
+      setFormData({
+        ...initialState,
+        solicitadoPor: formData.solicitadoPor,
+      });
 
     } catch (error: any) {
       console.error('Error al enviar el reporte:', error);
@@ -73,15 +85,16 @@ const ErrorReport = () => {
         <form onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="mb-4">
-              <label htmlFor="solicitadoPor" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Solicitado por: (Nombre y apellido)</label>
+              <label htmlFor="solicitadoPor" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Solicitado por: </label>
               <input
                 type="text"
                 id="solicitadoPor"
                 className="shadow-sm bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
-                placeholder="Ej: Ana Pérez"
+                placeholder="Cargando..."
                 value={formData.solicitadoPor}
                 onChange={handleChange}
                 required
+                readOnly
               />
             </div>
 
