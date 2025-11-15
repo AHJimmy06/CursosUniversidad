@@ -1,47 +1,82 @@
-// En src/contexts/ThemeContext.tsx
-
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../utils/supabaseClient';
 
-// ... (interface ThemeConfig si la necesitas para otras cosas como el logo)
+type ColorConfig = {
+  primario: string;
+  secundario: string;
+  primary_emphasis: string;
+  secondary_emphasis: string;
+  lightprimary: string;
+  lightsecondary: string;
+  info: string;
+  lightinfo: string;
+  info_emphasis: string;
+};
 
-const ThemeContext = createContext<any>(null); // Lo dejamos simple por ahora
+type SiteConfig = {
+  logo_url: string;
+  colores: ColorConfig;
+};
+
+const DEFAULT_COLORS: ColorConfig = {
+  primario: '#cd1616',
+  secundario: '#f8c20a',
+  primary_emphasis: '#810d0d',
+  secondary_emphasis: '#c77e00',
+  lightprimary: '#c61d1d50',
+  lightsecondary: '#ffbb004b',
+  info: '#3182CE',
+  lightinfo: '#BEE3F8',
+  info_emphasis: '#2B6CB0',
+};
+
+const DEFAULT_CONFIG: SiteConfig = {
+  logo_url: '/fisei-icono.jpg',
+  colores: DEFAULT_COLORS,
+};
+
+interface ThemeContextType {
+  config: SiteConfig;
+  isLoading: boolean;
+}
+
+const ThemeContext = createContext<ThemeContextType>({
+  config: DEFAULT_CONFIG,
+  isLoading: true,
+});
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
-  const [theme, setTheme] = useState<any>(null);
+  const [config, setConfig] = useState<SiteConfig>(DEFAULT_CONFIG);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchTheme = async () => {
+    const fetchConfig = async () => {
+      setIsLoading(true);
       const { data } = await supabase
         .from('configuracion_sitio')
         .select('logo_url, contenido_estatico')
         .eq('id', 1)
         .single();
-      
-      if (data && data.contenido_estatico?.colores) {
-        const colors = data.contenido_estatico.colores;
-        setTheme(colors); // Guardamos el objeto de colores en el estado
 
-        // --- La Magia: Inyectar las 6 variables CSS globales ---
-        document.documentElement.style.setProperty('--color-primary', colors.primario);
-        document.documentElement.style.setProperty('--color-secondary', colors.secundario);
-        document.documentElement.style.setProperty('--color-primary-emphasis', colors.primary_emphasis);
-        document.documentElement.style.setProperty('--color-secondary-emphasis', colors.secondary_emphasis);
-        document.documentElement.style.setProperty('--color-lightprimary', colors.lightprimary);
-        document.documentElement.style.setProperty('--color-lightsecondary', colors.lightsecondary);
-        document.documentElement.style.setProperty('--color-info', colors.info);
-        document.documentElement.style.setProperty('--color-lightinfo', colors.lightinfo);
-        document.documentElement.style.setProperty('--color-info-emphasis', colors.info_emphasis);
+      if (data) {
+        setConfig({
+          logo_url: data.logo_url || DEFAULT_CONFIG.logo_url,
+          colores: { ...DEFAULT_COLORS, ...data.contenido_estatico?.colores },
+        });
+      } else {
+        setConfig(DEFAULT_CONFIG);
       }
+      setIsLoading(false);
     };
-    fetchTheme();
+
+    fetchConfig();
   }, []);
 
   return (
-    <ThemeContext.Provider value={theme}>
+    <ThemeContext.Provider value={{ config, isLoading }}>
       {children}
     </ThemeContext.Provider>
   );
 };
 
-export const useTheme = () => useContext(ThemeContext);
+export const useThemeConfig = () => useContext(ThemeContext);
