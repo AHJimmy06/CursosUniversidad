@@ -70,6 +70,8 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
 export const useTheme = (): ThemeConfig | null => useContext(ThemeContext);
 
 
+import { ModalProvider } from "./contexts/ModalContext";
+
 function App() {
   return (
     <>
@@ -77,7 +79,9 @@ function App() {
       <Flowbite theme={{ theme: customTheme }}>
         <UserProvider>
           <ThemeProvider>
-            <RouterProvider router={router} />
+            <ModalProvider>
+              <RouterProvider router={router} />
+            </ModalProvider>
           </ThemeProvider>
         </UserProvider>
       </Flowbite>

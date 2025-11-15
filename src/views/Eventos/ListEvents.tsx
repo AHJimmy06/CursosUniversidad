@@ -10,6 +10,9 @@ const ListEvents: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   const [selectedEvent, setSelectedEvent] = useState<Evento | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [responsibleFilter, setResponsibleFilter] = useState('');
 
   const fetchEventsAndResponsables = async () => {
     setLoading(true);
@@ -104,6 +107,21 @@ const ListEvents: React.FC = () => {
     }
   };
 
+  const filteredEvents = events.filter(event => {
+    const searchTermLower = searchTerm.toLowerCase();
+    const responsibleFilterLower = responsibleFilter.toLowerCase();
+
+    const matchesSearchTerm = event.nombre.toLowerCase().includes(searchTermLower);
+    const matchesType = typeFilter ? event.tipo === typeFilter : true;
+    const matchesResponsible =
+      !responsibleFilter ||
+      (event.responsable &&
+        (`${event.responsable.nombre1} ${event.responsable.apellido1}`.toLowerCase().includes(responsibleFilterLower) ||
+          event.responsable.cedula.includes(responsibleFilter)));
+
+    return matchesSearchTerm && matchesType && matchesResponsible;
+  });
+
 
   if (loading) return <p>Cargando eventos...</p>;
   if (error) return <Alert color="failure">Error al cargar datos: {error}</Alert>;
@@ -111,6 +129,35 @@ const ListEvents: React.FC = () => {
   return (
     <div className="p-4">
       <h2 className="text-2xl font-bold mb-4">Listado de Eventos</h2>
+      <div className="flex justify-between items-center mb-6">
+        <input
+          type="text"
+          placeholder="Buscar por nombre"
+          className="border p-2 rounded"
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+        />
+        <select
+          className="border p-2 rounded"
+          value={typeFilter}
+          onChange={e => setTypeFilter(e.target.value)}
+        >
+          <option value="">Todos los tipos</option>
+          <option value="curso">Curso</option>
+          <option value="conferencia">Conferencia</option>
+          <option value="congreso">Congreso</option>
+          <option value="webinar">Webinar</option>
+          <option value="socializacion">Socialización</option>
+          <option value="otro">Otro</option>
+        </select>
+        <input
+          type="text"
+          placeholder="Buscar por responsable"
+          className="border p-2 rounded"
+          value={responsibleFilter}
+          onChange={e => setResponsibleFilter(e.target.value)}
+        />
+      </div>
       <Modal show={isEditModalOpen} onClose={() => setIsEditModalOpen(false)}>
         <Modal.Header>Editar Evento</Modal.Header>
         <Modal.Body>
@@ -124,7 +171,7 @@ const ListEvents: React.FC = () => {
         </Modal.Body>
       </Modal>
 
-      {events.length === 0 ? (
+      {filteredEvents.length === 0 ? (
         <p>No hay eventos disponibles.</p>
       ) : (
         <Table>
@@ -136,7 +183,7 @@ const ListEvents: React.FC = () => {
             <Table.HeadCell><span className="sr-only">Acciones</span></Table.HeadCell>
           </Table.Head>
           <Table.Body className="divide-y">
-            {events.map((event) => (
+            {filteredEvents.map((event) => (
               <Table.Row key={event.id}>
                 <Table.Cell className="font-medium">{event.nombre}</Table.Cell>
                 <Table.Cell>{event.responsable ? `${event.responsable.nombre1} ${event.responsable.apellido1}` : 'No asignado'}</Table.Cell>

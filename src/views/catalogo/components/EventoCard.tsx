@@ -6,9 +6,12 @@ import { HiOutlinePhotograph } from 'react-icons/hi';
 
 interface EventoCardProps {
   evento: Evento;
+  showCalificarButton?: boolean;
+  showValidarMatriculasButton?: boolean;
+  showEditButton?: boolean;
 }
 
-const EventoCard: React.FC<EventoCardProps> = ({ evento }) => {
+const EventoCard: React.FC<EventoCardProps> = ({ evento, showCalificarButton, showValidarMatriculasButton, showEditButton }) => {
   return (
     <Card className="h-full flex flex-col">
       <div className="aspect-video w-full overflow-hidden rounded-lg">
@@ -40,11 +43,34 @@ const EventoCard: React.FC<EventoCardProps> = ({ evento }) => {
         <p className="font-normal text-gray-700 dark:text-gray-400 text-sm mb-4 line-clamp-3">
           {evento.descripcion || 'Sin descripción disponible.'}
         </p>
-        <Link to={`/evento/${evento.id}`} className="mt-auto">
-          <Button color="primary" className="w-full">
-            Ver más detalles
-          </Button>
-        </Link>
+        <div className="mt-auto flex flex-col gap-2">
+          <Link to={`/evento/${evento.id}`}>
+            <Button color="primary" className="w-full">
+              Ver más detalles
+            </Button>
+          </Link>
+          {showCalificarButton && (
+            <Link to={`/docente/gestion-estudiantes/${evento.id}`}>
+              <Button color="secondary" className="w-full">
+                Calificar Estudiantes
+              </Button>
+            </Link>
+          )}
+          {showValidarMatriculasButton && (
+            <Link to={`/responsable/solicitudes/${evento.id}`}>
+              <Button color="secondary" className="w-full">
+                Validar Matrículas
+              </Button>
+            </Link>
+          )}
+          {showEditButton && (
+            <Link to={`/eventos/editar/${evento.id}`}>
+              <Button color="warning" className="w-full">
+                Editar Evento
+              </Button>
+            </Link>
+          )}
+        </div>
       </div>
     </Card>
   );
