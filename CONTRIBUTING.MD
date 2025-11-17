@@ -3,13 +3,13 @@
 ¡Gracias por tu interés en contribuir a **CursosUniversidad**! Este proyecto es una aplicación web para la gestión de cursos universitarios, construida con React, TypeScript, Vite, Tailwind CSS y Supabase. Apreciamos cualquier contribución que ayude a mejorar la plataforma.
 
 ## 📋 Tabla de Contenidos
-- [Código de Conducta](#código-de-conducta)
-- [Cómo Contribuir](#cómo-contribuir)
-- [Configuración del Entorno de Desarrollo](#configuración-del-entorno-de-desarrollo)
-- [Guías de Desarrollo](#guías-de-desarrollo)
-- [Proceso de Pull Request](#proceso-de-pull-request)
-- [Reportar Problemas](#reportar-problemas)
-- [Licencia](#licencia)
+- [Código de Conducta]
+- [Cómo Contribuir]
+- [Configuración del Entorno de Desarrollo]
+- [Guías de Desarrollo]
+- [Proceso de Pull Request]
+- [Reportar Problemas]
+- [Licencia]
 
 ## 🤝 Código de Conducta
 Este proyecto sigue un código de conducta para fomentar un entorno colaborativo y respetuoso. Al participar, aceptas:
