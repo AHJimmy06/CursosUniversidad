@@ -17,6 +17,7 @@ const EventoDetalle = Loadable(lazy(() => import('../views/eventoDetalle/EventoD
 const InscripcionWizard = Loadable(lazy(() => import('../views/Matricula/InscripcionWizard')));
 const ValidacionMatriculas = Loadable(lazy(() => import('../views/Matricula/ValidacionMatriculas')));
 const ValidarCarreras = Loadable(lazy(() => import('../views/admin/ValidarCarreras')));
+const ErrorReport = Loadable(lazy(() => import('../views/ErrorReport/ErrorReport')));
 
 const Dashboard = Loadable(lazy(() => import('../views/dashboards/Dashboard')));
 const MiPerfil = Loadable(lazy(() => import('../views/perfil/MiPerfil')));
@@ -62,6 +63,7 @@ const Router = [
           { path: '/configuracion', exact: true, element: <ConfiguracionPage /> },
           { path: '/docente/eventos', exact: true, element: <DocenteEventos /> },
           { path: '/docente/gestion-estudiantes/:cursoId', exact: true, element: <GestionEstudiantes /> },
+          { path: '/report-error', exact: true, element: <ErrorReport /> },
           { path: '/responsable/eventos', exact: true, element: <ResponsableEventos /> },
           { path: '/estudiante/mis-eventos', exact: true, element: <MisEventos /> },
         ],

@@ -5,7 +5,8 @@ import { useUser } from 'src/contexts/UserContext';
 import { supabase } from 'src/utils/supabaseClient';
 import { Evento } from 'src/types/eventos';
 import { useParams } from 'react-router-dom';
-import RejectionModal from './RejectionModal'; // Importar el nuevo modal
+import RejectionModal from './RejectionModal';
+import { useModal } from '../../contexts/ModalContext';
 
 const BUCKET_PAGOS = (import.meta.env.VITE_STORAGE_BUCKET_PAGOS as string) || 'comprobantes-pago';
 
@@ -102,7 +103,6 @@ const ValidacionMatriculas: React.FC = () => {
     return pub?.data?.publicUrl || null;
   };
 
-  import { useModal } from 'src/contexts/ModalContext';
 
 // ... (dentro del componente ValidacionMatriculas)
   const { showModal } = useModal();

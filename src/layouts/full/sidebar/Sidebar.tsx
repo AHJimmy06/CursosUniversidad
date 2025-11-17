@@ -3,22 +3,16 @@ import SidebarContent, { MenuItem, ChildItem } from "./Sidebaritems";
 import NavItems from "./NavItems";
 import SimpleBar from "simplebar-react";
 import React, { useMemo } from "react";
-// Ya no necesitamos FullLogo, así que podemos comentarlo o eliminarlo
-// import FullLogo from "../shared/logo/FullLogo"; 
 import NavCollapse from "./NavCollapse";
 import { useUser } from "../../../contexts/UserContext";
-
-// --- CAMBIO 1: Importar el hook 'useTheme' que creamos en App.tsx ---
-import { useTheme } from "../../../App"; // ¡Asegúrate de que la ruta a tu App.tsx sea correcta!
+import { useThemeConfig } from "../../../contexts/ThemeContext";
 
 const SidebarLayout = () => {
   const { profile, isDocente, isResponsable } = useUser();
   const userRole = profile?.rol;
   
-  // --- CAMBIO 2: Usar el hook para obtener la configuración del tema ---
-  const theme = useTheme();
+  const { config: theme } = useThemeConfig();
 
-  // La función de filtrado de roles es correcta, no necesita cambios
   const filterItemsByRole = (
     items: (MenuItem | ChildItem)[] | undefined
   ): (MenuItem | ChildItem)[] => {
@@ -43,7 +37,6 @@ const SidebarLayout = () => {
       });
   };
 
-  // Esta parte, como la tenías, estaba bien y la mantenemos.
   const filteredSidebarContent = useMemo(
     () => filterItemsByRole(SidebarContent),
     [userRole, isDocente, isResponsable]
@@ -58,9 +51,8 @@ const SidebarLayout = () => {
         >
           <div className="px-6 py-4 flex items-center justify-center sidebarlogo">
             <img 
-              src={theme?.logo_url || 'https://via.placeholder.com/150?text=Logo'}
+              src={theme.logo_url || 'https://via.placeholder.com/150?text=Logo'}
               alt="Logo del Sitio"
-              // --- ÚNICO CAMBIO REALIZADO ---
               className="h-32 w-auto object-contain" 
             />
           </div>
@@ -68,7 +60,6 @@ const SidebarLayout = () => {
             <Sidebar.Items className="px-5 mt-2">
               <Sidebar.ItemGroup className="sidebar-nav hide-menu">
                 {filteredSidebarContent.map((item, index) =>
-                  // Esta comprobación 'heading' in item es una forma inteligente de solucionar el error de tipos. La mantenemos.
                   'heading' in item ? (
                     <div className="caption" key={item.heading || index}>
                       <React.Fragment key={index}>

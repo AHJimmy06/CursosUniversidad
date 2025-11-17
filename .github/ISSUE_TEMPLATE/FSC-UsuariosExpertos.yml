@@ -56,7 +56,7 @@ body:
       label: Naturaleza del Cambio
       options:
         - Nuevo Requerimiento
-        - Cambio a Requisito Existente
+        - Sugerencia de mejora
         - Defecto/Error
     validations:
       required: true
