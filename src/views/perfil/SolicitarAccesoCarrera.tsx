@@ -25,18 +25,20 @@ const SolicitarAccesoCarrera: React.FC<{ onUploadComplete: () => void }> = ({ on
     setError(null);
 
     try {
-      // 1. Subir el archivo
+      // 1. Preparar ruta: userID/nombreArchivo
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
+      // CORRECCION AQUI: Incluir user.id como carpeta
+      const filePath = `${user.id}/${fileName}`;
 
+      // 2. Subir el archivo
       const { error: uploadError } = await supabase.storage
         .from(BUCKET_CARRERAS)
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
-      // 2. Obtener la URL pública
+      // 3. Obtener la URL pública
       const { data: urlData } = supabase.storage
         .from(BUCKET_CARRERAS)
         .getPublicUrl(filePath);
@@ -45,7 +47,7 @@ const SolicitarAccesoCarrera: React.FC<{ onUploadComplete: () => void }> = ({ on
       
       const publicURL = urlData.publicUrl;
 
-      // 3. Actualizar el perfil del usuario
+      // 4. Actualizar el perfil del usuario
       const { error: updateError } = await supabase
         .from('perfiles')
         .update({
@@ -56,7 +58,7 @@ const SolicitarAccesoCarrera: React.FC<{ onUploadComplete: () => void }> = ({ on
 
       if (updateError) throw updateError;
 
-      // 4. Notificar al componente padre para que refresque el estado
+      // 5. Notificar
       onUploadComplete();
 
     } catch (err: any) {

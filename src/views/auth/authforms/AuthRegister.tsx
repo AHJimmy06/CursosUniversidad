@@ -172,7 +172,7 @@ const AuthRegister = () => {
       if (careerProofFile) {
         const filePath = `${authData.user.id}/${careerProofFile.name}`;
         const { error: uploadError } = await supabase.storage
-          .from('comprobantes_carrera')
+          .from('comprobantes-carrera')
           .upload(filePath, careerProofFile);
 
         if (uploadError) {
@@ -180,7 +180,7 @@ const AuthRegister = () => {
         }
 
         const { data: urlData } = supabase.storage
-          .from('comprobantes_carrera')
+          .from('comprobantes-carrera')
           .getPublicUrl(filePath);
         
         comprobanteUrl = urlData.publicUrl;
