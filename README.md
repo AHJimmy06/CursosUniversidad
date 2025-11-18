@@ -1,100 +1,92 @@
-# 🎓 ACADEXUS: Plataforma de Gestión de Eventos y Cursos Académicos
 
-_El proyecto \*\*ACADEXUS\*\* es una aplicación web/escritorio desarrollada para la administración y la inscripción a eventos/cursos académicos (CRUD de información y gestión de roles). Su objetivo principal es simular el proceso de gestión de la configuración del software mediante el desarrollo colaborativo, aplicando buenas prácticas de control de versiones y control de cambios._
+# 🎓 Sistema de Gestión de Eventos de la FISEI
 
-## Comenzando 🚀
+El **Sistema de Gestión de Eventos de la FISEI** es una aplicación web desarrollada como un proyecto universitario para la gestión de cursos y eventos académicos de la Facultad de Ingeniería en Sistemas, Electrónica e Industrial (FISEI). La plataforma permite la administración de eventos, la inscripción de estudiantes y la gestión de roles de usuario.
 
-_Estas instrucciones te permitirán obtener una copia del proyecto en funcionamiento en tu máquina local para propósitos de desarrollo y pruebas._
+## ✨ Funcionalidades Principales
 
-_Mira el apartado de **Despliegue** para conocer cómo desplegar el proyecto._
+La aplicación cuenta con un sistema de roles dinámico que adapta la interfaz y las funcionalidades según el tipo de usuario:
 
-## Pre-requisitos 📋
+### Rol: `Administrador`
+- **Gestión de Usuarios:** Crear, ver y administrar todos los usuarios del sistema.
+- **Gestión de Eventos:** Control total sobre los eventos (crear, editar, eliminar y publicar).
+- **Validación de Carreras y Matrículas:** Administrar y validar las carreras disponibles y las inscripciones de los estudiantes.
+- **Configuración del Sistema:** Acceso a paneles de configuración de apariencia y otros ajustes generales.
 
-_Que cosas necesitas para instalar el software y como instalarlas_
+### Rol: `Docente` / `Responsable`
+- **Gestión de Eventos Asignados:** Administrar los detalles de los eventos en los que han sido designados como "Docente" o "Responsable".
+- **Gestión de Estudiantes:** Ver y gestionar la lista de estudiantes inscritos en sus eventos.
 
-_Para el desarrollo, se requiere un entorno con **Node.js** y **Git**. Se recomienda utilizar **Visual Studio Code** como IDE. Necesitas las credenciales para el backend como servicio (BaaS) **Supabase**._
+### Rol: `Estudiante` (General)
+- **Catálogo de Eventos:** Explorar todos los eventos y cursos disponibles.
+- **Inscripción:** Inscribirse en los eventos de su interés.
+- **Mis Eventos:** Ver un listado de todos los eventos en los que está inscrito.
+- **Gestión de Perfil:** Actualizar su información personal.
 
-**Instalar Git:**
-_Instalar el paquete de Git en tu sistema operativo_
-```bash
-# Para obtener la copia local del repositorio (obligatorio)
-sudo apt install git
-```
-**Crear archivo .env:**
-_Crea un archivo .env en la raíz del proyecto y añade las variables necesarias_
-```Ejemplo
-VITE_SUPABASE_URL=... y VITE_SUPABASE_ANON_KEY=...
-```
+## 🚀 Comenzando
 
+Sigue estas instrucciones para obtener una copia del proyecto en funcionamiento en tu máquina local para propósitos de desarrollo y pruebas.
+
+### Pre-requisitos 📋
+
+- **Node.js** (v18 o superior)
+- **Git**
+- Un editor de código (se recomienda **Visual Studio Code**)
 
 ### Instalación 🔧
 
-_Clonar el repositorio: Obtén una copia local del código fuente desde GitHub:_
+1.  **Clonar el repositorio:**
+    ```bash
+    git clone https://github.com/AHJimmy06/CursosUniversidad.git
+    ```
 
-```
-git clone [https://github.com/AHJimmy06/CursosUniversidad](https://github.com/AHJimmy06/CursosUniversidad)
-```
+2.  **Acceder al directorio del proyecto:**
+    ```bash
+    cd CursosUniversidad
+    ```
 
-_Acceder al directorio del proyecto: Navega al directorio recién clonado:_
+3.  **Instalar dependencias:**
+    ```bash
+    npm install
+    ```
 
-```
-cd CursosUniversidad
-```
+4.  **Configurar variables de entorno:**
+    Crea un archivo `.env` en la raíz del proyecto y añade las siguientes variables. Estas credenciales son necesarias para la conexión con el backend (Supabase) y otras integraciones.
 
-_Instalar dependencias: Instala las librerías necesarias (asumiendo un proyecto React/Vite):_
-```
-npm install
-```
-_Configurar variables de entorno: Crea y configura el archivo .env con las claves de Supabase. Este archivo debe ser excluido del control de versiones_
+    ```env
+    # Credenciales de Supabase
+    VITE_SUPABASE_URL=TU_URL_DE_SUPABASE
+    VITE_SUPABASE_ANON_KEY=TU_LLAVE_ANON_DE_SUPABASE
 
-_Ejecutar el entorno de desarrollo: Inicia la aplicación en modo local:_
-```
-npm run dev
-```
+    # Credenciales de GitHub (necesarias para la funcionalidad de reportar un error desde la aplicación)
+    GITHUB_REPO=TU_REPOSITORIO_GITHUB
+    GITHUB_TOKEN=TU_TOKEN_DE_GITHUB
+    ```
 
-## Despliegue 📦
+5.  **Ejecutar el entorno de desarrollo:**
+    Una vez configurado, inicia la aplicación en modo local.
+    ```bash
+    npm run dev
+    ```
+    La aplicación estará disponible en `http://localhost:5173`.
 
-_El proyecto implementó un sistema de control de versiones con **Git** y utiliza **GitHub** para el repositorio remoto._
+## 🛠️ Construido con
 
-**Flujo de Despliegue/Integración:**
-_Se debe utilizar un flujo de trabajo definido, como **Gitflow**, para gestionar la integración de funcionalidades en la rama `develop`._
+- **React & Vite:** Como base del frontend para una experiencia de desarrollo rápida y moderna.
+- **TypeScript:** Para un código más robusto y mantenible.
+- **Tailwind CSS:** Para el diseño de la interfaz de usuario.
+- **Supabase:** Utilizado como Backend as a Service (BaaS) para la base de datos, autenticación y APIs.
+- **Git & GitHub:** Para el control de versiones del código fuente.
 
-## Construido con 🛠️
+## ✒️ Autores
 
-* **React / Vite** - Base del frontend.
-* **Supabase** - Utilizado para el *Backend as a Service* (BaaS).
-* **Git / GitHub** - Para el control de versiones del código fuente y la documentación.
-* **Jira Service Management** - Para la gestión y simulación del proceso de control de cambios.
-* **Visual Studio Code** - Editor de código empleado.
+- **Cobos Taco Alison Marcela**
+- **Tisalema Carrillo Patricio Sebastian**
+- **Añilema Hoffmann Jimmy Alexander**
+- **Rojas Hechavarria Maia Carolina**
+- **Quitto Navarrete Bryan Lenin**
+- **Villalba López Washington Esteban**
 
-## Contribuyendo 🖇️
+## 📄 Licencia
 
-_Por favor, lee el `CONTRIBUTING.md` para detalles de nuestro código de conducta, y el proceso para enviarnos *pull requests*._
-
-
-## Versionado 📌
-
-_Usamos **Git** para el versionado. Para todas las versiones disponibles, mira los *tags* en este repositorio._
-
-## Autores ✒️
-
-* **Cobos Taco Alison Marcela**
-* **Tisalema Carrillo Patricio Sebastian**
-* **Añilema Hoffmann Jimmy Alexander**
-* **Rojas Hechavarria Maia Carolina**
-* **Quitto Navarrete Bryan Lenin**
-* **Villalba López Washington Esteban**
-
-_También puedes mirar la lista de todos los contribuyentes quienes han participado en este proyecto a través del historial de *commits* y *Pull Requests*._
-
-## Licencia 📄
-
-_Este proyecto está bajo la **Licencia MIT** - mira el archivo `LICENSE.md` para detalles._
-
-## Expresiones de Gratitud 🎁
-* Comenta a otros sobre este proyecto 📢
-* Disfruta de este proyecto junto un café 
-* Agradecimiento a nuestro docente, Ing. MSc. Santiago David Jara Moya.🤓
-
----
-
+Este proyecto está bajo la **Licencia MIT** - mira el archivo `LICENSE.md` para más detalles.
