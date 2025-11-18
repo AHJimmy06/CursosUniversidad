@@ -1,4 +1,3 @@
-
 # 🎓 Sistema de Gestión de Eventos de la FISEI
 
 El **Sistema de Gestión de Eventos de la FISEI** es una aplicación web desarrollada como un proyecto universitario para la gestión de cursos y eventos académicos de la Facultad de Ingeniería en Sistemas, Electrónica e Industrial (FISEI). La plataforma permite la administración de eventos, la inscripción de estudiantes y la gestión de roles de usuario.
@@ -37,7 +36,7 @@ Sigue estas instrucciones para obtener una copia del proyecto en funcionamiento 
 
 1.  **Clonar el repositorio:**
     ```bash
-    git clone https://github.com/AHJimmy06/CursosUniversidad.git
+    git clone [https://github.com/AHJimmy06/CursosUniversidad.git](https://github.com/AHJimmy06/CursosUniversidad.git)
     ```
 
 2.  **Acceder al directorio del proyecto:**
@@ -77,6 +76,10 @@ Sigue estas instrucciones para obtener una copia del proyecto en funcionamiento 
 - **Tailwind CSS:** Para el diseño de la interfaz de usuario.
 - **Supabase:** Utilizado como Backend as a Service (BaaS) para la base de datos, autenticación y APIs.
 - **Git & GitHub:** Para el control de versiones del código fuente.
+
+## 📝 Changelog
+
+Consulta el historial de cambios detallado en el archivo [CHANGELOG.md](./CHANGELOG.md).
 
 ## ✒️ Autores
 
