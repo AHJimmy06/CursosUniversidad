@@ -40,6 +40,7 @@
     "@iconify/react": "^5.1.0",
     "@types/aos": "^3.0.7",
     "@types/chance": "^1.1.6",
+    "@types/lodash.debounce": "^4.0.9",
     "@types/node": "20.10.5",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^19.2.2",

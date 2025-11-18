@@ -14,3 +14,5 @@ export interface UserProfile {
   updated_at: string;
   deleted_at?: string;
 }
+
+export type User = UserProfile;
