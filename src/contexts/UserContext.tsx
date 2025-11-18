@@ -15,6 +15,7 @@ interface UserContextType {
   loading: boolean;
   isLoggingIn: boolean;
   isDocente: boolean;
+  isResponsable: boolean;
   setIsLoggingIn: (isLoggingIn: boolean) => void;
 }
 
@@ -26,6 +27,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isDocente, setIsDocente] = useState(false);
+  const [isResponsable, setIsResponsable] = useState(false);
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -40,13 +42,19 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           .single();
         setProfile(profileData);
 
-        const { data: docenteData, error: docenteErr } = await supabase
+        // Determinar si el usuario es docente de al menos un evento
+        const { count: docenteCount, error: docenteErr } = await supabase
           .from('Eventos')
-          .select('docente_id')
-          .eq('docente_id', session.user.id)
-          .maybeSingle();
-        // maybeSingle evita 406 cuando no hay filas; si no hay match, no es docente
-        setIsDocente(!!docenteData && !docenteErr);
+          .select('id', { count: 'exact', head: true })
+          .eq('docente_id', session.user.id);
+        setIsDocente(!docenteErr && (typeof docenteCount === 'number') && docenteCount > 0);
+
+        // Determinar si el usuario es responsable de al menos un evento
+        const { count: responsableCount, error: responsableErr } = await supabase
+          .from('Eventos')
+          .select('id', { count: 'exact', head: true })
+          .eq('responsable_id', session.user.id);
+        setIsResponsable(!responsableErr && (typeof responsableCount === 'number') && responsableCount > 0);
       }
       setLoading(false);
     };
@@ -73,6 +81,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     loading,
     isLoggingIn,
     isDocente,
+    isResponsable,
     setIsLoggingIn,
   };
 

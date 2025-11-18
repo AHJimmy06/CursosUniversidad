@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../../utils/supabaseClient';
 import { Evento } from '../../types/eventos';
 import { Alert, Spinner, Card, Badge, Button } from 'flowbite-react';
 import { HiCalendar, HiOutlineClock, HiUser, HiIdentification, HiOutlineSparkles, HiInformationCircle, HiOutlinePhotograph } from 'react-icons/hi';
+import { jsPDF } from 'jspdf';
 
 const EventoDetalle: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -13,6 +14,12 @@ const EventoDetalle: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isRegistrationOpen, setIsRegistrationOpen] = useState(false);
   const [registrationMessage, setRegistrationMessage] = useState('');
+  const [enrollmentStatus, setEnrollmentStatus] = useState<string | null>(null);
+  const [isEventFinished, setIsEventFinished] = useState(false);
+  const [notaFinal, setNotaFinal] = useState<number | null>(null);
+  const [asistencia, setAsistencia] = useState<number | null>(null);
+  const [studentName, setStudentName] = useState<string>('');
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     const fetchEvento = async () => {
@@ -25,6 +32,19 @@ const EventoDetalle: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (user) {
+          const { data: profile, error: profileError } = await supabase
+            .from('perfiles')
+            .select('nombre1, apellido1')
+            .eq('id', user.id)
+            .single();
+
+          if (profileError) throw profileError;
+          setStudentName(`${profile.nombre1} ${profile.apellido1}`);
+        }
+
         const { data, error: dbError } = await supabase
           .from('Eventos')
           .select(`
@@ -42,6 +62,26 @@ const EventoDetalle: React.FC = () => {
         
         setEvento(data);
         checkRegistrationStatus(data);
+        checkEventFinished(data);
+
+        if (user && data) {
+          const { data: inscriptionData, error: inscriptionError } = await supabase
+            .from('inscripciones')
+            .select('estado, nota_final, asistencia')
+            .eq('usuario_id', user.id)
+            .eq('evento_id', data.id)
+            .single();
+
+          if (inscriptionError && inscriptionError.code !== 'PGRST116') { // PGRST116: no rows found
+            throw inscriptionError;
+          }
+
+          if (inscriptionData) {
+            setEnrollmentStatus(inscriptionData.estado);
+            setNotaFinal(inscriptionData.nota_final);
+            setAsistencia(inscriptionData.asistencia);
+          }
+        }
 
       } catch (err: any) {
         setError(err.message || 'Ocurrió un error inesperado.');
@@ -72,8 +112,72 @@ const EventoDetalle: React.FC = () => {
       }
     };
 
+    const checkEventFinished = (eventData: Evento) => {
+        if (!eventData.fecha_fin_evento) {
+            setIsEventFinished(false);
+            return;
+        }
+        const now = new Date();
+        const endDate = new Date(eventData.fecha_fin_evento);
+        if (now > endDate) {
+            setIsEventFinished(true);
+        }
+    }
+
     fetchEvento();
   }, [id]);
+
+// ... (código existente)
+
+  const handleGenerateCertificate = () => {
+    const canvas = canvasRef.current;
+    if (!canvas || !evento || !evento.docente) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const template = new Image();
+    template.crossOrigin = 'anonymous'; // Para evitar problemas de CORS con la imagen
+    template.src = '/Certificado.png'; 
+    template.onload = () => {
+        canvas.width = template.width;
+        canvas.height = template.height;
+        ctx.drawImage(template, 0, 0);
+
+        // Estilos de texto
+        ctx.fillStyle = '#000000';
+        ctx.textAlign = 'center';
+
+        // 1. Nombre del estudiante
+        ctx.font = '80px Times New Roman';
+        ctx.fillText(studentName, canvas.width / 2, 720);
+
+        // 2. Detalles del evento
+        ctx.font = '45px Times New Roman';
+        ctx.fillText(`Por haber completado exitosamente el curso de "${evento.nombre}"`, canvas.width / 2, 850);
+        
+        // 3. Nombre del docente
+        ctx.font = '38px Times New Roman';
+        if (evento.docente) {
+          ctx.fillText(`${evento.docente.nombre1} ${evento.docente.apellido1}`, canvas.width / 2, 1050);
+        }
+        
+        
+        // Generar PDF
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF({
+            orientation: 'landscape',
+            unit: 'px',
+            format: [canvas.width, canvas.height]
+        });
+        
+        pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+        pdf.save(`Certificado-${evento.nombre}.pdf`);
+    };
+  };
+
+// ... (código existente)
+
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'No especificada';
@@ -81,6 +185,20 @@ const EventoDetalle: React.FC = () => {
       year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
     });
   };
+
+  const renderPriceOrStatus = () => {
+    if (isEventFinished) {
+        return <Badge color="gray" size="lg">Evento Finalizado</Badge>
+    }
+    if (enrollmentStatus) {
+      return <Badge color="success" size="sm" className="capitalize">{enrollmentStatus}</Badge>
+    }
+    return (
+        <Badge size="lg" color={evento?.es_pagado ? 'warning' : 'success'} className="mt-2 md:mt-0">
+            {evento?.es_pagado ? `Costo: $${evento.costo}` : 'Gratuito'}
+        </Badge>
+    );
+  }
 
   if (loading) {
     return (
@@ -95,7 +213,7 @@ const EventoDetalle: React.FC = () => {
   }
   
   if (!evento) {
-     return <Alert color="warning">No se encontró información para este evento.</Alert>;
+      return <Alert color="warning">No se encontró información para este evento.</Alert>;
   }
 
   return (
@@ -119,9 +237,7 @@ const EventoDetalle: React.FC = () => {
             <h1 className="text-4xl font-bold text-gray-900 dark-text-white">{evento.nombre}</h1>
             <Badge color="cyan" size="sm" className="mt-2 inline-block capitalize">{evento.tipo?.replace('_', ' ')}</Badge>
           </div>
-          <Badge size="lg" color={evento.es_pagado ? 'warning' : 'success'} className="mt-2 md:mt-0">
-            {evento.es_pagado ? `Costo: $${evento.costo}` : 'Gratuito'}
-          </Badge>
+          {renderPriceOrStatus()}
         </div>
 
         <p className="text-lg text-gray-600 dark:text-gray-400 my-4">
@@ -129,37 +245,64 @@ const EventoDetalle: React.FC = () => {
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 border-t pt-6">
-          <div className="space-y-3">
-            <h3 className="text-xl font-semibold border-b pb-2">Fechas del Evento</h3>
-            <p className="flex items-center gap-2"><HiCalendar /> <b>Inicia:</b> {formatDate(evento.fecha_inicio_evento)}</p>
-            <p className="flex items-center gap-2"><HiCalendar /> <b>Finaliza:</b> {formatDate(evento.fecha_fin_evento)}</p>
-          </div>
-          <div className="space-y-3">
-            <h3 className="text-xl font-semibold border-b pb-2">Período de Inscripción</h3>
-            <p className="flex items-center gap-2"><HiCalendar /> <b>Apertura:</b> {formatDate(evento.fecha_inicio_inscripcion)}</p>
-            <p className="flex items-center gap-2"><HiCalendar /> <b>Cierre:</b> {formatDate(evento.fecha_fin_inscripcion)}</p>
-          </div>
-          <div className="space-y-3">
-            <h3 className="text-xl font-semibold border-b pb-2">Detalles Académicos</h3>
-            {evento.numero_horas && <p className="flex items-center gap-2"><HiOutlineClock /> <b>Duración:</b> {evento.numero_horas} horas</p>}
-            {evento.genera_certificado && <p className="flex items-center gap-2"><HiOutlineSparkles /> Otorga certificado.</p>}
-            {evento.responsable && <p className="flex items-center gap-2"><HiUser /> <b>Responsable:</b> {`${evento.responsable.nombre1} ${evento.responsable.apellido1}`}</p>}
-            {evento.docente && <p className="flex items-center gap-2"><HiIdentification /> <b>Docente:</b> {`${evento.docente.nombre1} ${evento.docente.apellido1}`}</p>}
-          </div>
+            <div className="space-y-3">
+                <h3 className="text-xl font-semibold border-b pb-2">Fechas del Evento</h3>
+                <p className="flex items-center gap-2"><HiCalendar /> <b>Inicia:</b> {formatDate(evento.fecha_inicio_evento)}</p>
+                <p className="flex items-center gap-2"><HiCalendar /> <b>Finaliza:</b> {formatDate(evento.fecha_fin_evento)}</p>
+            </div>
+            <div className="space-y-3">
+                <h3 className="text-xl font-semibold border-b pb-2">Período de Inscripción</h3>
+                <p className="flex items-center gap-2"><HiCalendar /> <b>Apertura:</b> {formatDate(evento.fecha_inicio_inscripcion)}</p>
+                <p className="flex items-center gap-2"><HiCalendar /> <b>Cierre:</b> {formatDate(evento.fecha_fin_inscripcion)}</p>
+            </div>
+            <div className="space-y-3">
+                <h3 className="text-xl font-semibold border-b pb-2">Detalles Académicos</h3>
+                {evento.numero_horas && <p className="flex items-center gap-2"><HiOutlineClock /> <b>Duración:</b> {evento.numero_horas} horas</p>}
+                {evento.genera_certificado && <p className="flex items-center gap-2"><HiOutlineSparkles /> Otorga certificado.</p>}
+                {evento.responsable && <p className="flex items-center gap-2"><HiUser /> <b>Responsable:</b> {`${evento.responsable.nombre1} ${evento.responsable.apellido1}`}</p>}
+                {evento.docente && <p className="flex items-center gap-2"><HiIdentification /> <b>Docente:</b> {`${evento.docente.nombre1} ${evento.docente.apellido1}`}</p>}
+            </div>
         </div>
         
-        <div className="mt-8 flex justify-end">
-          <Button 
-            color={isRegistrationOpen ? 'success' : 'gray'} 
-            disabled={!isRegistrationOpen}
-            size="lg"
-            onClick={() => navigate(`/evento/${evento.id}/inscripcion`)}
-          >
-            {registrationMessage}
-          </Button>
-        </div>
+        {(notaFinal !== null || asistencia !== null) && (
+            <div className="mt-8 border-t pt-6">
+                <h3 className="text-xl font-semibold border-b pb-2">Resultados Académicos</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-4">
+                    <div className="space-y-3">
+                        {notaFinal !== null && <p><b>Nota Final:</b> {notaFinal}</p>}
+                    </div>
+                    <div className="space-y-3">
+                        {asistencia !== null && <p><b>Asistencia:</b> {asistencia}%</p>}
+                    </div>
+                    {(() => {
+                        const notaAprobacion = evento?.nota_aprobacion;
+                        if (notaFinal !== null && notaAprobacion !== null && notaFinal >= notaAprobacion) {
+                            return (
+                                <div className="space-y-3">
+                                    <Button onClick={handleGenerateCertificate}>Imprimir Certificado</Button>
+                                </div>
+                            );
+                        }
+                        return null;
+                    })()}
+                </div>
+            </div>
+        )}       
+        {!enrollmentStatus && !isEventFinished && (
+            <div className="mt-8 flex justify-end">
+                <Button 
+                    color={isRegistrationOpen ? 'success' : 'gray'} 
+                    disabled={!isRegistrationOpen}
+                    size="lg"
+                    onClick={() => navigate(`/evento/${evento.id}/inscripcion`)}
+                >
+                    {registrationMessage}
+                </Button>
+            </div>
+        )}
       </Card>
-    </div>
+      <canvas ref={canvasRef} style={{ display: 'none' }} />
+	</div>
   );
 };
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { TextInput, Button, Label, Alert, Textarea, ToggleSwitch, Select, FileInput } from 'flowbite-react';
-import { supabase } from '../../../utils/supabaseClient';
-import { Evento, PerfilSimple } from '../../../types/eventos';
+import { TextInput, Button, Label, Alert, Textarea, ToggleSwitch, Select, FileInput, Checkbox, Spinner } from 'flowbite-react';
+import { supabase } from 'src/utils/supabaseClient';
+import { Evento, PerfilSimple, Carrera } from 'src/types/eventos';
 
 interface EditEventFormProps {
   event: Evento;
@@ -18,17 +18,27 @@ const EditEventForm: React.FC<EditEventFormProps> = ({ event, onClose, onUpdate 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [allCareers, setAllCareers] = useState<Carrera[]>([]);
+  const [selectedCareers, setSelectedCareers] = useState<number[]>([]);
+  const [loadingCareers, setLoadingCareers] = useState(false);
+
   useEffect(() => {
-    const fetchDocentes = async () => {
-      const { data } = await supabase.from('perfiles').select('id, nombre1, apellido1, cedula');
-      if (data) setDocentes(data as PerfilSimple[]);
+    const fetchDocentesAndCareers = async () => {
+      setLoadingCareers(true);
+      const { data: docentesData } = await supabase.from('perfiles').select('id, nombre1, apellido1, cedula');
+      if (docentesData) setDocentes(docentesData as PerfilSimple[]);
+
+      const { data: careersData } = await supabase.from('carreras').select('id, nombre');
+      if (careersData) setAllCareers(careersData as Carrera[]);
+      setLoadingCareers(false);
     };
-    fetchDocentes();
+    fetchDocentesAndCareers();
   }, []);
 
   useEffect(() => {
     setFormData(event);
     setImagePreview(event.imagen_url || null);
+    setSelectedCareers(event.carreras?.map(c => c.id) || []);
   }, [event]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -60,6 +70,14 @@ const EditEventForm: React.FC<EditEventFormProps> = ({ event, onClose, onUpdate 
     }
     
     setFormData(prev => ({ ...prev, [name]: finalValue }));
+  };
+
+  const handleCareerChange = (careerId: number) => {
+    setSelectedCareers(prev =>
+      prev.includes(careerId)
+        ? prev.filter(id => id !== careerId)
+        : [...prev, careerId]
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -95,6 +113,15 @@ const EditEventForm: React.FC<EditEventFormProps> = ({ event, onClose, onUpdate 
             .eq('id', event.id);
 
         if (updateError) throw updateError;
+
+        // --- Lógica para guardar carreras ---
+        const careersToSave = formData.audiencia === 'estudiantes_carrera' ? selectedCareers : [];
+        const { error: rpcError } = await supabase.rpc('assign_event_careers', {
+            p_event_id: event.id,
+            p_career_ids: careersToSave,
+        });
+
+        if (rpcError) throw rpcError;
         
         onUpdate();
 
@@ -152,16 +179,33 @@ const EditEventForm: React.FC<EditEventFormProps> = ({ event, onClose, onUpdate 
         </Select>
       </div>
 
-      <div>
+      <div className="md:col-span-2">
         <Label htmlFor="audiencia" value="Audiencia del Evento" />
         <Select id="audiencia" name="audiencia" value={formData.audiencia || 'publico_general'} onChange={handleChange} required>
           <option value="publico_general">Público General</option>
-          <option value="estudiantes_uta">Estudiantes UTA</option>
-          <option value="estudiantes_facultad">Estudiantes Facultad</option>
-          <option value="estudiantes_carrera">Estudiantes Carrera</option>
+          <option value="estudiantes_carrera">Estudiantes por Carrera</option>
         </Select>
       </div>
-      <div></div>
+
+      {formData.audiencia === 'estudiantes_carrera' && (
+        <div className="md:col-span-2 p-4 border rounded-lg">
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Carreras Permitidas</h3>
+            {loadingCareers ? <Spinner /> : (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                {allCareers.map(career => (
+                  <Label key={career.id} className="flex items-center gap-2 p-2 rounded-lg">
+                    <Checkbox
+                      id={`career-${career.id}`}
+                      checked={selectedCareers.includes(career.id)}
+                      onChange={() => handleCareerChange(career.id)}
+                    />
+                    {career.nombre}
+                  </Label>
+                ))}
+              </div>
+            )}
+        </div>
+      )}
 
       <div>
         <Label htmlFor="fecha_inicio_evento" value="Inicio del Evento" />

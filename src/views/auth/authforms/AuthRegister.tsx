@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Button, Label, TextInput, Alert } from "flowbite-react";
+import { Button, Label, TextInput, Alert, FileInput } from "flowbite-react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../../../utils/supabaseClient";
+import { supabase } from "src/utils/supabaseClient";
 
 const validarCedulaEcuador = (identificacion: string): boolean => {
   if (typeof identificacion !== 'string' || identificacion.length !== 10 || !/^\d+$/.test(identificacion)) {
@@ -39,6 +39,7 @@ const AuthRegister = () => {
     telefono: "",
     fecha_nacimiento: "",
   });
+  const [careerProofFile, setCareerProofFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -56,11 +57,24 @@ const AuthRegister = () => {
     }
   };
 
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      const file = event.target.files[0];
+      if (file.type === "application/pdf") {
+        setCareerProofFile(file);
+      } else {
+        setError("Por favor, sube solo archivos PDF.");
+        event.target.value = ""; // Reset file input
+      }
+    }
+  };
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
     setSuccessMessage(null);
 
+    // --- Validaciones existentes ---
     const emailNormalizado = formData.email.trim().toLowerCase();
     const identificacionLimpia = formData.cedula.trim();
     const telefonoLimpio = formData.telefono.trim();
@@ -123,21 +137,23 @@ const AuthRegister = () => {
       setError("La edad máxima permitida es de 75 años.");
       return;
     }
+    // --- Fin de validaciones ---
 
     setLoading(true);
     
     try {
+      // 1. Verificar si la cédula ya existe
       const { data: cedulaExistente, error: cedulaError } = await supabase
         .from('perfiles')
         .select('cedula')
         .eq('cedula', identificacionLimpia);
 
       if (cedulaError) throw cedulaError;
-
       if (cedulaExistente && cedulaExistente.length > 0) {
         throw new Error("La identificación ingresada ya se encuentra registrada.");
       }
 
+      // 2. Crear el usuario en auth.users
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: emailNormalizado,
         password: formData.password,
@@ -151,6 +167,26 @@ const AuthRegister = () => {
       }
       if (!authData.user) throw new Error("No se pudo crear el usuario.");
 
+      // 3. Subir el comprobante si existe
+      let comprobanteUrl: string | null = null;
+      if (careerProofFile) {
+        const filePath = `${authData.user.id}/${careerProofFile.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from('comprobantes_carrera')
+          .upload(filePath, careerProofFile);
+
+        if (uploadError) {
+          throw new Error("Error al subir el comprobante: " + uploadError.message);
+        }
+
+        const { data: urlData } = supabase.storage
+          .from('comprobantes_carrera')
+          .getPublicUrl(filePath);
+        
+        comprobanteUrl = urlData.publicUrl;
+      }
+
+      // 4. Insertar el perfil completo en la tabla 'perfiles'
       const { error: profileError } = await supabase
         .from("perfiles")
         .insert({
@@ -163,6 +199,8 @@ const AuthRegister = () => {
           telefono: telefonoLimpio,
           fecha_nacimiento: formData.fecha_nacimiento,
           email: emailNormalizado,
+          comprobante_carrera_url: comprobanteUrl,
+          estado_verificacion: comprobanteUrl ? 'pendiente' : 'no_solicitado',
         });
       
       if (profileError) throw profileError;
@@ -231,6 +269,14 @@ const AuthRegister = () => {
             <Label htmlFor="confirmPassword" value="Confirmar Contraseña" />
             <TextInput id="confirmPassword" name="confirmPassword" type="password" required onChange={handleChange} value={formData.confirmPassword} minLength={6} />
           </div>
+        </div>
+
+        <div className="mb-6">
+          <Label htmlFor="career-proof" value="Comprobante de Carrera (Opcional)" />
+          <FileInput id="career-proof" accept="application/pdf" onChange={handleFileChange} />
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Sube un PDF que verifique tu carrera si deseas acceder a eventos restringidos.
+          </p>
         </div>
 
         <Button color="primary" type="submit" className="w-full" disabled={loading || !!successMessage}>

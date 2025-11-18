@@ -8,7 +8,7 @@ export interface UserProfile {
   telefono: string;
   email: string;
   fecha_nacimiento: string;
-  rol_usuario: 'general' | 'administrador';
+  rol: 'general' | 'administrador';
   is_active: boolean;
   created_at: string;
   updated_at: string;
