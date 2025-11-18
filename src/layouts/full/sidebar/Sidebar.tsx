@@ -1,0 +1,98 @@
+import { Sidebar } from "flowbite-react";
+import SidebarContent, { MenuItem, ChildItem } from "./Sidebaritems";
+import NavItems from "./NavItems";
+import SimpleBar from "simplebar-react";
+import React, { useMemo } from "react";
+import NavCollapse from "./NavCollapse";
+import { useUser } from "../../../contexts/UserContext";
+import { useThemeConfig } from "../../../contexts/ThemeContext";
+
+const SidebarLayout = () => {
+  const { profile, isDocente, isResponsable } = useUser();
+  const userRole = profile?.rol;
+  
+  const { config: theme } = useThemeConfig();
+
+  const filterItemsByRole = (
+    items: (MenuItem | ChildItem)[] | undefined
+  ): (MenuItem | ChildItem)[] => {
+    if (!items) return [];
+    return items
+      .filter((item) => {
+        if (item.name === 'Docente') {
+          return isDocente;
+        }
+        if (item.name === 'Responsable') {
+          return isResponsable;
+        }
+        const isPublic = !item.roles;
+        const hasAccess = userRole && item.roles?.includes(userRole);
+        return isPublic || hasAccess;
+      })
+      .map((item) => {
+        if (item.children) {
+          return { ...item, children: filterItemsByRole(item.children) };
+        }
+        return item;
+      });
+  };
+
+  const filteredSidebarContent = useMemo(
+    () => filterItemsByRole(SidebarContent),
+    [userRole, isDocente, isResponsable]
+  );
+
+  return (
+    <>
+      <div className="xl:block hidden">
+        <Sidebar
+          className="fixed menu-sidebar bg-white dark:bg-darkgray rtl:pe-4 rtl:ps-0 top-[69px]"
+          aria-label="Sidebar with multi-level dropdown example"
+        >
+          <div className="px-6 py-4 flex items-center justify-center sidebarlogo">
+            <img 
+              src={theme.logo_url || 'https://via.placeholder.com/150?text=Logo'}
+              alt="Logo del Sitio"
+              className="h-32 w-auto object-contain" 
+            />
+          </div>
+          <SimpleBar className="h-[calc(100vh_-_130px)]">
+            <Sidebar.Items className="px-5 mt-2">
+              <Sidebar.ItemGroup className="sidebar-nav hide-menu">
+                {filteredSidebarContent.map((item, index) => {
+                  if ('heading' in item) {
+                    if (item.children && item.children.length > 0) {
+                      return (
+                        <div className="caption" key={item.heading || index}>
+                          <React.Fragment key={index}>
+                            <h5 className="text-link dark:text-white/70 caption font-semibold leading-6 tracking-widest text-xs pb-2 uppercase">
+                              {item.heading}
+                            </h5>
+                            {item.children.map((child, childIndex) => (
+                              <React.Fragment key={child.id || childIndex}>
+                                {child.children ? (
+                                  <div className="collpase-items">
+                                    <NavCollapse item={child} />
+                                  </div>
+                                ) : (
+                                  <NavItems item={child} />
+                                )}
+                              </React.Fragment>
+                            ))}
+                          </React.Fragment>
+                        </div>
+                      );
+                    }
+                  }
+                  return null;
+                })}
+              </Sidebar.ItemGroup>
+            </Sidebar.Items>
+          </SimpleBar>
+        </Sidebar>
+      </div>
+    </>
+  );
+};
+
+export default SidebarLayout;
