@@ -1,9 +1,11 @@
-# Dependencies
+# Dependencias del proyecto
 /node_modules
+
+# Archivos de build
 /dist
 /dist-ssr
 
-# Cache
+# Archivos de caché
 .vite/
 .npm/
 .yarn/cache
@@ -11,7 +13,7 @@
 .yarn/unplugged
 .pnp.*
 
-# Logs
+# Archivos de registro (logs)
 logs
 *.log
 npm-debug.log*
@@ -20,22 +22,28 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Local Environment Variables
+# Variables de entorno locales
 .env
 .env.local
 .env.*.local
 
-# IDE and Editor Directories
+# Configuraciones de IDE
+.idea
 .vscode/*
 !.vscode/extensions.json
-.idea
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
 
-# OS-generated files
+# Archivos del sistema operativo
 .DS_Store
 Thumbs.db
+
+# Archivos de Supabase
+/.supabase
+
+# Archivos de Gemini
+.gemini/
 GEMINI.md

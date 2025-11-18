@@ -13,7 +13,7 @@
     background: var(--bs-white);
     top: 0;
     left: 0px;
-    transition: left .4s ease-in-out;
+    transition: all .2s ease-in-out;
 }
 
 .sidebar-nav .caption {
@@ -71,5 +71,3 @@ background: 0 0;
 border: 0;
 transition: color .15s ease-in-out, background-color .15s ease-in-out, border-color .15s ease-in-out;
 }
-
-

@@ -59,28 +59,33 @@ const SidebarLayout = () => {
           <SimpleBar className="h-[calc(100vh_-_130px)]">
             <Sidebar.Items className="px-5 mt-2">
               <Sidebar.ItemGroup className="sidebar-nav hide-menu">
-                {filteredSidebarContent.map((item, index) =>
-                  'heading' in item ? (
-                    <div className="caption" key={item.heading || index}>
-                      <React.Fragment key={index}>
-                        <h5 className="text-link dark:text-white/70 caption font-semibold leading-6 tracking-widest text-xs pb-2 uppercase">
-                          {item.heading}
-                        </h5>
-                        {filterItemsByRole(item.children).map((child, childIndex) => (
-                          <React.Fragment key={child.id || childIndex}>
-                            {child.children ? (
-                              <div className="collpase-items">
-                                <NavCollapse item={child} />
-                              </div>
-                            ) : (
-                              <NavItems item={child} />
-                            )}
+                {filteredSidebarContent.map((item, index) => {
+                  if ('heading' in item) {
+                    if (item.children && item.children.length > 0) {
+                      return (
+                        <div className="caption" key={item.heading || index}>
+                          <React.Fragment key={index}>
+                            <h5 className="text-link dark:text-white/70 caption font-semibold leading-6 tracking-widest text-xs pb-2 uppercase">
+                              {item.heading}
+                            </h5>
+                            {item.children.map((child, childIndex) => (
+                              <React.Fragment key={child.id || childIndex}>
+                                {child.children ? (
+                                  <div className="collpase-items">
+                                    <NavCollapse item={child} />
+                                  </div>
+                                ) : (
+                                  <NavItems item={child} />
+                                )}
+                              </React.Fragment>
+                            ))}
                           </React.Fragment>
-                        ))}
-                      </React.Fragment>
-                    </div>
-                  ) : null
-                )}
+                        </div>
+                      );
+                    }
+                  }
+                  return null;
+                })}
               </Sidebar.ItemGroup>
             </Sidebar.Items>
           </SimpleBar>

@@ -12,6 +12,7 @@ const EventoDetalle: React.FC = () => {
   const [evento, setEvento] = useState<Evento | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [isRegistrationOpen, setIsRegistrationOpen] = useState(false);
   const [registrationMessage, setRegistrationMessage] = useState('');
   const [enrollmentStatus, setEnrollmentStatus] = useState<string | null>(null);
@@ -33,6 +34,7 @@ const EventoDetalle: React.FC = () => {
       setError(null);
       try {
         const { data: { user } } = await supabase.auth.getUser();
+        setCurrentUser(user);
 
         if (user) {
           const { data: profile, error: profileError } = await supabase
@@ -216,6 +218,8 @@ const EventoDetalle: React.FC = () => {
       return <Alert color="warning">No se encontró información para este evento.</Alert>;
   }
 
+  const isDocente = currentUser && evento && evento.docente && currentUser.id === evento.docente.id;
+
   return (
     <div className="container mx-auto p-4">
       <div
@@ -288,7 +292,7 @@ const EventoDetalle: React.FC = () => {
                 </div>
             </div>
         )}       
-        {!enrollmentStatus && !isEventFinished && (
+        {!enrollmentStatus && !isEventFinished && !isDocente && (
             <div className="mt-8 flex justify-end">
                 <Button 
                     color={isRegistrationOpen ? 'success' : 'gray'} 

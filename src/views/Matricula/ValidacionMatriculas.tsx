@@ -1,14 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Badge, Button, Card, Spinner, Table, Tooltip } from 'flowbite-react';
-import { HiCheck, HiDownload, HiInformationCircle, HiX } from 'react-icons/hi';
+import { HiCheck, HiDownload, HiInformationCircle, HiX, HiPrinter } from 'react-icons/hi';
 import { useUser } from 'src/contexts/UserContext';
 import { supabase } from 'src/utils/supabaseClient';
 import { Evento } from 'src/types/eventos';
 import { useParams } from 'react-router-dom';
 import RejectionModal from './RejectionModal';
 import { useModal } from '../../contexts/ModalContext';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const BUCKET_PAGOS = (import.meta.env.VITE_STORAGE_BUCKET_PAGOS as string) || 'comprobantes-pago';
+
 
 // Tipos locales
 interface InscripcionRow {
@@ -165,6 +168,72 @@ const ValidacionMatriculas: React.FC = () => {
     }
   };
 
+  const handleGenerarReporte = async () => {
+    if (!evento) return;
+
+    showModal({ title: 'Generando Reporte', body: 'Por favor, espera mientras se recopilan los datos...', showCancel: false });
+
+    try {
+      // 1. Fetch all inscriptions for the event
+      const { data: allInscripciones, error: inscError } = await supabase
+        .from('inscripciones')
+        .select('usuario_id, estado, fecha_inscripcion')
+        .eq('evento_id', evento.id);
+
+      if (inscError) throw inscError;
+      if (!allInscripciones || allInscripciones.length === 0) {
+        showModal({ title: 'Información', body: 'No hay inscripciones en este evento para generar un reporte.', showCancel: false, confirmText: 'Entendido' });
+        return;
+      }
+
+      // 2. Fetch all related profiles
+      const userIds = Array.from(new Set(allInscripciones.map(i => i.usuario_id)));
+      const { data: allPerfiles, error: perfError } = await supabase
+        .from('perfiles')
+        .select('id, nombre1, apellido1, email')
+        .in('id', userIds);
+      
+      if (perfError) throw perfError;
+      const perfilesMap = new Map(allPerfiles.map(p => [p.id, p]));
+
+      // 3. Generate PDF
+      const doc = new jsPDF();
+      doc.setFontSize(18);
+      doc.text(`Reporte de Matrículas: ${evento.nombre}`, 14, 22);
+      doc.setFontSize(11);
+      doc.setTextColor(100);
+      doc.text(`Fecha de generación: ${new Date().toLocaleDateString()}`, 14, 30);
+
+      const head = [['Estudiante', 'Email', 'Estado de Matrícula', 'Fecha de Inscripción']];
+      const body = allInscripciones.map(insc => {
+        const perfil = perfilesMap.get(insc.usuario_id);
+        return [
+          perfil ? `${perfil.nombre1} ${perfil.apellido1}` : 'N/A',
+          perfil ? perfil.email : 'N/A',
+          insc.estado.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()), // Capitalize status
+          insc.fecha_inscripcion ? new Date(insc.fecha_inscripcion).toLocaleDateString() : 'N/A'
+        ];
+      });
+
+      autoTable(doc, {
+        startY: 40,
+        head: head,
+        body: body,
+        theme: 'striped',
+        headStyles: { fillColor: [41, 128, 185] }, // Color azul
+      });
+
+      doc.save(`reporte_matriculas_${evento.nombre.replace(/ /g, '_')}.pdf`);
+      
+      // Cierra el modal mostrando un mensaje de éxito
+      showModal({ title: 'Éxito', body: 'El reporte ha sido generado.', showCancel: false, confirmText: 'OK' });
+
+    } catch (err: any) {
+      console.error("Error generando el reporte:", err);
+      showModal({ title: 'Error', body: `No se pudo generar el reporte: ${err.message}`, showCancel: false, confirmText: 'Cerrar' });
+    }
+  };
+
   if (loading || loadingUser) {
     return <div className="flex justify-center items-center h-[60vh]"><Spinner size="xl" /></div>;
   }
@@ -174,7 +243,14 @@ const ValidacionMatriculas: React.FC = () => {
       <div className="container mx-auto p-4">
         <Card>
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-semibold">Validación de Pagos para {evento?.nombre}</h1>
+            <div className="flex items-center gap-4">
+              <h1 className="text-2xl font-semibold">Validación de Pagos para {evento?.nombre}</h1>
+              <Tooltip content="Imprimir Reporte de Matrículas">
+                <Button color="gray" size="sm" onClick={handleGenerarReporte}>
+                  <HiPrinter className="h-5 w-5" />
+                </Button>
+              </Tooltip>
+            </div>
             <Badge color="warning">Pendientes de Pago</Badge>
           </div>
           {error && <Alert color="failure" className="mt-3" icon={HiInformationCircle}>{error}</Alert>}

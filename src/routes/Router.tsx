@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import { Navigate, createBrowserRouter, Outlet } from "react-router";
+import { Navigate, createBrowserRouter, Outlet } from "react-router-dom";
 import Loadable from 'src/layouts/full/shared/loadable/Loadable';
 import ProtectedRoute from './ProtectedRoute';
 import { useUser } from '../contexts/UserContext';
@@ -33,64 +33,72 @@ const ResponsableEventos = Loadable(lazy(() => import('../views/responsable/Resp
 const MisEventos = Loadable(lazy(() => import('../views/estudiante/MisEventos')));
 
 const AuthRoutes = () => {
-  const { user, loading, isLoggingIn } = useUser();
+  const { user, profile, loading, isLoggingIn } = useUser();
   if (loading) return null;
-  return user && !isLoggingIn ? <Navigate to="/" /> : <Outlet />;
+
+  if (user && !isLoggingIn) {
+    if (profile && profile.rol !== 'administrador') {
+      return <Navigate to="/catalogo" />;
+    }
+    return <Navigate to="/" />;
+  }
+
+  return <Outlet />;
 };
 
 const Router = [
   {
     path: '/',
     element: <ProtectedRoute />,
-    children: [
-      {
-        path: '/',
-        element: <FullLayout />,
         children: [
-          { path: '/', element: <Dashboard /> },
-          { path: '/catalogo', exact: true, element: <Catalogo /> },
-          { path: '/evento/:id', exact: true, element: <EventoDetalle /> },
-          { path: '/evento/:id/inscripcion', exact: true, element: <InscripcionWizard /> },
-          { path: '/responsable/solicitudes/:cursoId', exact: true, element: <ValidacionMatriculas /> },
-          { path: '/ui/form', exact: true, element: <Form/> },
-          { path: '/eventos/crear', exact: true, element: <CreateEvent/> },
-          { path: '/eventos/editar/:id', exact: true, element: <EditEvent/> },
-          { path: '/eventos/listar', exact: true, element: <ListEvents/> },
-          { path: '/usuarios/listar', exact: true, element: <UserManagement/> },
-          { path: '/usuarios/crear', exact: true, element: <CreateUserPage/> },
-          { path: '/admin/validar-carreras', exact: true, element: <ValidarCarreras /> },
-          { path: 'perfil', element: <MiPerfil /> },
-          { path: '/configuracion', exact: true, element: <ConfiguracionPage /> },
-          { path: '/docente/eventos', exact: true, element: <DocenteEventos /> },
-          { path: '/docente/gestion-estudiantes/:cursoId', exact: true, element: <GestionEstudiantes /> },
-          { path: '/report-error', exact: true, element: <ErrorReport /> },
-          { path: '/responsable/eventos', exact: true, element: <ResponsableEventos /> },
-          { path: '/estudiante/mis-eventos', exact: true, element: <MisEventos /> },
+          {
+            path: '/',
+            element: <FullLayout />,
+            children: [
+              { path: '/', element: <Dashboard /> },
+              { path: '/catalogo', exact: true, element: <Catalogo /> },
+              { path: '/evento/:id', exact: true, element: <EventoDetalle /> },
+              { path: '/evento/:id/inscripcion', exact: true, element: <InscripcionWizard /> },
+              { path: '/responsable/solicitudes/:cursoId', exact: true, element: <ValidacionMatriculas /> },
+              { path: '/ui/form', exact: true, element: <Form/> },
+              { path: '/eventos/crear', exact: true, element: <CreateEvent/> },
+              { path: '/eventos/editar/:id', exact: true, element: <EditEvent/> },
+              { path: '/eventos/listar', exact: true, element: <ListEvents/> },
+              { path: '/usuarios/listar', exact: true, element: <UserManagement/> },
+              { path: '/usuarios/crear', exact: true, element: <CreateUserPage/> },
+              { path: '/admin/validar-carreras', exact: true, element: <ValidarCarreras /> },
+              { path: 'perfil', element: <MiPerfil /> },
+              { path: '/configuracion', exact: true, element: <ConfiguracionPage /> },
+              { path: '/docente/eventos', exact: true, element: <DocenteEventos /> },
+              { path: '/docente/gestion-estudiantes/:cursoId', exact: true, element: <GestionEstudiantes /> },
+              { path: '/report-error', exact: true, element: <ErrorReport /> },
+              { path: '/responsable/eventos', exact: true, element: <ResponsableEventos /> },
+              { path: '/estudiante/mis-eventos', exact: true, element: <MisEventos /> },
+            ],
+          },
         ],
       },
-    ],
-  },
-  {
-    path: '/auth',
-    element: <AuthRoutes />,
-    children: [
       {
-        path: '',
-        element: <BlankLayout />,
+        path: '/auth',
+        element: <AuthRoutes />,
         children: [
-          { path: 'login', element: <Login /> },
-          { path: 'register', element: <Register /> },
-          { path: '404', element: <Error /> },
+          {
+            path: '',
+            element: <BlankLayout />,
+            children: [
+              { path: 'login', element: <Login /> },
+              { path: 'register', element: <Register /> },
+              { path: '404', element: <Error /> },
+            ],
+          },
         ],
       },
-    ],
-  },
-  {
-    path: '*',
-    element: <Navigate to="/auth/404" />,
-  },
-];
-
+      {
+        path: '*',
+        element: <Navigate to="/auth/404" />,
+      },
+    ];
+    
 const AppRouter = () => {
     return createBrowserRouter(Router);
 }

@@ -48,6 +48,7 @@ const SidebarContent: MenuItem[] = [
   },
   {
     heading: "Gestión en Información",
+    roles: ['administrador'],
     children: [
       {
         name: "Eventos",
@@ -130,6 +131,7 @@ const SidebarContent: MenuItem[] = [
   },
   {
     heading: "Validación",
+    roles: ['administrador'],
     children: [
       {
         name: "Validar Carreras",
@@ -143,6 +145,7 @@ const SidebarContent: MenuItem[] = [
   },
   {
     heading: "Ajustes del Sistema",
+    roles: ['administrador'],
     children: [
       {
         name: "Configuración",

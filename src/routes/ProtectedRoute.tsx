@@ -1,5 +1,5 @@
 import React from 'react';
-import { Navigate, Outlet } from 'react-router';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 import Spinner from '../views/spinner/Spinner';
 
@@ -8,7 +8,8 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ redirectPath = '/auth/login' }) => {
-  const { user, loading } = useUser();
+  const { user, profile, loading } = useUser();
+  const location = useLocation();
 
   if (loading) {
     return <Spinner />;
@@ -16,6 +17,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ redirectPath = '/auth/l
 
   if (!user) {
     return <Navigate to={redirectPath} replace />;
+  }
+
+  if (location.pathname === '/' && profile && profile.rol !== 'administrador') {
+    return <Navigate to="/catalogo" replace />;
   }
 
   return <Outlet />;
