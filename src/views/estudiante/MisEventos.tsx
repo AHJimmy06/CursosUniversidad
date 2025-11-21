@@ -40,7 +40,7 @@ const MisEventos = () => {
 
         if (inscripcionesError) throw inscripcionesError;
 
-        setInscripciones(data || []);
+        setInscripciones((data || []) as unknown as InscripcionConPago[]);
       } catch (err) {
         setError((err as Error).message);
       } finally {

@@ -74,7 +74,7 @@ const EventoDetalle: React.FC = () => {
             .eq('evento_id', data.id)
             .single();
 
-          if (inscriptionError && inscriptionError.code !== 'PGRST116') { // PGRST116: no rows found
+          if (inscriptionError && inscriptionError.code !== 'PGRST116') { 
             throw inscriptionError;
           }
 
@@ -129,8 +129,6 @@ const EventoDetalle: React.FC = () => {
     fetchEvento();
   }, [id]);
 
-// ... (código existente)
-
   const handleGenerateCertificate = () => {
     const canvas = canvasRef.current;
     if (!canvas || !evento || !evento.docente) return;
@@ -139,14 +137,13 @@ const EventoDetalle: React.FC = () => {
     if (!ctx) return;
 
     const template = new Image();
-    template.crossOrigin = 'anonymous'; // Para evitar problemas de CORS con la imagen
+    template.crossOrigin = 'anonymous'; 
     template.src = '/Certificado.png'; 
     template.onload = () => {
         canvas.width = template.width;
         canvas.height = template.height;
         ctx.drawImage(template, 0, 0);
 
-        // Estilos de texto
         ctx.fillStyle = '#000000';
         ctx.textAlign = 'center';
 
@@ -164,8 +161,6 @@ const EventoDetalle: React.FC = () => {
           ctx.fillText(`${evento.docente.nombre1} ${evento.docente.apellido1}`, canvas.width / 2, 1050);
         }
         
-        
-        // Generar PDF
         const imgData = canvas.toDataURL('image/png');
         const pdf = new jsPDF({
             orientation: 'landscape',
@@ -177,9 +172,6 @@ const EventoDetalle: React.FC = () => {
         pdf.save(`Certificado-${evento.nombre}.pdf`);
     };
   };
-
-// ... (código existente)
-
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'No especificada';
@@ -238,7 +230,7 @@ const EventoDetalle: React.FC = () => {
       <Card>
         <div className="flex flex-col md:flex-row justify-between items-start mb-4">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900 dark-text-white">{evento.nombre}</h1>
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-white">{evento.nombre}</h1>
             <Badge color="cyan" size="sm" className="mt-2 inline-block capitalize">{evento.tipo?.replace('_', ' ')}</Badge>
           </div>
           {renderPriceOrStatus()}
@@ -280,7 +272,7 @@ const EventoDetalle: React.FC = () => {
                     </div>
                     {(() => {
                         const notaAprobacion = evento?.nota_aprobacion;
-                        if (notaFinal !== null && notaAprobacion !== null && notaFinal >= notaAprobacion) {
+                        if (notaFinal !== null && notaAprobacion != null && notaFinal >= notaAprobacion) {
                             return (
                                 <div className="space-y-3">
                                     <Button onClick={handleGenerateCertificate}>Imprimir Certificado</Button>
@@ -306,7 +298,7 @@ const EventoDetalle: React.FC = () => {
         )}
       </Card>
       <canvas ref={canvasRef} style={{ display: 'none' }} />
-	</div>
+  </div>
   );
 };
 
