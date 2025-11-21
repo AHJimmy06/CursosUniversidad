@@ -92,11 +92,11 @@ const Catalogo: React.FC = () => {
 
             if (userCareersError) throw userCareersError;
 
-            if (userCareersData) {
-                careersForFilter = userCareersData
-                    .map(item => item.carreras)
-                    .filter(Boolean) as Carrera[];
-            }
+          if (userCareersData) {
+            careersForFilter = (userCareersData
+              .map(item => item.carreras)
+              .filter(Boolean) as unknown) as Carrera[];
+          }
         }
         setCarreras(careersForFilter);
 

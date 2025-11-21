@@ -100,8 +100,8 @@ const CreateUser = ({ show, onClose, onSubmit, formData, setFormData, handleInpu
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
             <Select
-              value={formData.rol_usuario || 'general'}
-              onChange={(e) => handleInputChange('rol_usuario', e.target.value)}
+              value={(formData as any).rol || 'general'}
+              onChange={(e) => handleInputChange('rol', e.target.value)}
               required
             >
               <option value="general">General</option>

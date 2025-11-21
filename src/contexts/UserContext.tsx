@@ -17,6 +17,7 @@ interface UserContextType {
   isDocente: boolean;
   isResponsable: boolean;
   setIsLoggingIn: (isLoggingIn: boolean) => void;
+  refreshProfile?: () => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -75,6 +76,16 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
+  const refreshProfile = async () => {
+    if (!user) return;
+    const { data: profileData } = await supabase
+      .from('perfiles')
+      .select('id, nombre1, apellido1, rol')
+      .eq('id', user.id)
+      .single();
+    setProfile(profileData as Profile | null);
+  };
+
   const value = {
     user,
     profile,
@@ -83,6 +94,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     isDocente,
     isResponsable,
     setIsLoggingIn,
+    refreshProfile,
   };
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;

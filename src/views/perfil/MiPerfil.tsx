@@ -62,7 +62,7 @@ const MiPerfil = () => {
         if (careersError) {
             setError('No se pudieron cargar las carreras.');
         } else if (careersResult) {
-            const careers = careersResult.map(item => item.carreras).filter(Boolean) as Carrera[];
+            const careers = (careersResult.map(item => item.carreras).filter(Boolean) as unknown) as Carrera[];
             setMyCareers(careers);
         }
         setLoadingCareers(false);
