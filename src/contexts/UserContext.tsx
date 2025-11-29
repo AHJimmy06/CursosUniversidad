@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import { User } from '@supabase/supabase-js';
 
@@ -6,7 +6,8 @@ interface Profile {
   id: string;
   nombre1: string;
   apellido1: string;
-  rol: 'administrador' | 'general'; // Añadir el campo rol
+  rol: 'administrador' | 'general';
+  cdc_roles?: string[];
 }
 
 interface UserContextType {
@@ -17,7 +18,7 @@ interface UserContextType {
   isDocente: boolean;
   isResponsable: boolean;
   setIsLoggingIn: (isLoggingIn: boolean) => void;
-  refreshProfile?: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -25,68 +26,119 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
+  
+  // ESTADO CRÍTICO: Comienza en true, pero una vez que pasa a false, 
+  // NUNCA debe volver a true automáticamente por eventos de sesión.
+  const [loading, setLoading] = useState(true); 
+  
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isDocente, setIsDocente] = useState(false);
   const [isResponsable, setIsResponsable] = useState(false);
 
-  useEffect(() => {
-    const fetchSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
+  const fetchFullProfile = useCallback(async (currentUser: User) => {
+    try {
+      const { data: profileData, error: profileError } = await supabase
+        .from('perfiles')
+        .select('id, nombre1, apellido1, rol')
+        .eq('id', currentUser.id)
+        .single();
 
-      if (session?.user) {
-        const { data: profileData } = await supabase
-          .from('perfiles')
-          .select('id, nombre1, apellido1, rol') // Incluir 'rol' en la selección
-          .eq('id', session.user.id)
-          .single();
-        setProfile(profileData);
-
-        // Determinar si el usuario es docente de al menos un evento
-        const { count: docenteCount, error: docenteErr } = await supabase
-          .from('Eventos')
-          .select('id', { count: 'exact', head: true })
-          .eq('docente_id', session.user.id);
-        setIsDocente(!docenteErr && (typeof docenteCount === 'number') && docenteCount > 0);
-
-        // Determinar si el usuario es responsable de al menos un evento
-        const { count: responsableCount, error: responsableErr } = await supabase
-          .from('Eventos')
-          .select('id', { count: 'exact', head: true })
-          .eq('responsable_id', session.user.id);
-        setIsResponsable(!responsableErr && (typeof responsableCount === 'number') && responsableCount > 0);
+      if (profileError) {
+        // Si no hay perfil, no lanzamos error, solo logueamos.
+        // Esto evita crashes si la BD falla momentáneamente.
+        console.warn("No se pudo cargar perfil:", profileError.message);
+        return;
       }
-      setLoading(false);
+
+      if (!profileData) return;
+
+      // NOTA PARA DESARROLLADORES:
+      // Si un usuario que debería ser "Miembro CAB" (o tener otro rol de CDC)
+      // no puede realizar acciones, es muy probable que el problema esté en la base de datos.
+      // Verifique lo siguiente:
+      // 1. Que exista una entrada en la tabla `cdc_usuarios_roles` que vincule el `usuario_id` con el `rol_id` correcto.
+      // 2. Que el `rol_id` en `cdc_usuarios_roles` corresponda a "Miembro CAB" en la tabla `cdc_roles`.
+      const [cdcRolesResponse, docenteResponse, responsableResponse] = await Promise.all([
+        supabase.from('cdc_usuarios_roles').select('roles:cdc_roles(nombre_rol)').eq('usuario_id', currentUser.id),
+        supabase.from('Eventos').select('id', { count: 'exact', head: true }).eq('docente_id', currentUser.id),
+        supabase.from('Eventos').select('id', { count: 'exact', head: true }).eq('responsable_id', currentUser.id)
+      ]);
+
+      const cdcRoles = cdcRolesResponse.data?.map(r => (r.roles as any).nombre_rol) || [];
+      const allRoles = [profileData.rol, ...cdcRoles];
+
+      setProfile({ ...profileData, cdc_roles: allRoles });
+      setIsDocente((docenteResponse.count ?? 0) > 0);
+      setIsResponsable((responsableResponse.count ?? 0) > 0);
+
+    } catch (error) {
+      console.error("Error en fetchFullProfile:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const initializeSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!mounted) return;
+
+        if (session?.user) {
+          setUser(session.user);
+          // Quitamos el loading inmediatamente (Optimista)
+          if (mounted) setLoading(false);
+          // Cargamos detalles en segundo plano
+          await fetchFullProfile(session.user);
+        } else {
+          setUser(null);
+          if (mounted) setLoading(false);
+        }
+      } catch (error) {
+        console.error("Error init session:", error);
+        if (mounted) setLoading(false);
+      }
     };
 
-    fetchSession();
+    initializeSession();
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (!session?.user) {
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
+
+      // Eventos de ruido que ignoramos completamente
+      if (event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') return;
+
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+
+      if (currentUser) {
+        // AQUÍ ESTÁ EL CAMBIO CLAVE:
+        // No importa si es SIGNED_IN, PASSWORD_RECOVERY o cambio de pestaña.
+        // NUNCA ponemos setLoading(true). Siempre asumimos que la app ya está lista 
+        // y solo actualizamos datos "por debajo".
+        fetchFullProfile(currentUser);
+        
+        // Solo aseguramos que loading sea false por si acaso quedó pegado
+        setLoading(false);
+      } else if (event === 'SIGNED_OUT') {
         setProfile(null);
-      } else {
-        fetchSession();
+        setIsDocente(false);
+        setIsResponsable(false);
+        setLoading(false);
       }
     });
 
     return () => {
+      mounted = false;
       authListener.subscription.unsubscribe();
     };
-  }, []);
+  }, [fetchFullProfile]);
 
-  const refreshProfile = async () => {
-    if (!user) return;
-    const { data: profileData } = await supabase
-      .from('perfiles')
-      .select('id, nombre1, apellido1, rol')
-      .eq('id', user.id)
-      .single();
-    setProfile(profileData as Profile | null);
-  };
+  const refreshProfile = useCallback(async () => {
+    if (user) await fetchFullProfile(user);
+  }, [user, fetchFullProfile]);
 
-  const value = {
+  const value = useMemo(() => ({
     user,
     profile,
     loading,
@@ -95,7 +147,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     isResponsable,
     setIsLoggingIn,
     refreshProfile,
-  };
+  }), [user, profile, loading, isLoggingIn, isDocente, isResponsable, refreshProfile]);
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 };
