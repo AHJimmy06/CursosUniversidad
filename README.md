@@ -11,6 +11,7 @@ La aplicación cuenta con un sistema de roles dinámico que adapta la interfaz y
 - **Gestión de Eventos:** Control total sobre los eventos (crear, editar, eliminar y publicar).
 - **Validación de Carreras y Matrículas:** Administrar y validar las carreras disponibles y las inscripciones de los estudiantes.
 - **Configuración del Sistema:** Acceso a paneles de configuración de apariencia y otros ajustes generales.
+- **Gestión de Cambios (CDC):** Administrar el ciclo de vida de las solicitudes de cambio, permitiendo su revisión, aprobación o rechazo.
 
 ### Rol: `Docente` / `Responsable`
 - **Gestión de Eventos Asignados:** Administrar los detalles de los eventos en los que han sido designados como "Docente" o "Responsable".
