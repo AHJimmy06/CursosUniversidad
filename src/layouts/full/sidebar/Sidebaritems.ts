@@ -104,6 +104,20 @@ const SidebarContent: MenuItem[] = [
     ],
   },
   {
+    heading: "Comité de Cambios (CDC)",
+    roles: ['administrador', 'Gestor de Cambios', 'Miembro CAB', 'Líder Técnico'],
+    children: [
+      {
+        name: "Solicitudes",
+        icon: "solar:file-check-line-duotone",
+        id: uniqueId(),
+        url: "/cdc/solicitudes",
+        isPro: false,
+        roles: ['administrador', 'Gestor de Cambios', 'Miembro CAB', 'Líder Técnico'],
+      },
+    ],
+  },
+  {
     heading: "Roles",
     children: [
       {

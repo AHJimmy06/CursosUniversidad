@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useRef } from 'react';
 import { Button, Modal } from 'flowbite-react';
 import { HiOutlineExclamationCircle } from 'react-icons/hi';
 
@@ -7,12 +7,11 @@ interface ModalContent {
   body: ReactNode;
   confirmText?: string;
   cancelText?: string;
-  onConfirm?: () => void;
   showCancel?: boolean;
 }
 
 interface ModalContextType {
-  showModal: (content: ModalContent) => void;
+  showModal: (content: ModalContent) => Promise<boolean>;
   hideModal: () => void;
 }
 
@@ -29,40 +28,33 @@ export const useModal = () => {
 export const ModalProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [content, setContent] = useState<ModalContent | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
+  
+  const promiseCallbacks = useRef<{ resolve: (value: boolean) => void } | null>(null);
 
-  const showModal = (newContent: ModalContent) => {
-    setContent({
-        showCancel: true, // Default to show cancel button for confirmations
-        ...newContent
+  const showModal = (newContent: ModalContent): Promise<boolean> => {
+    return new Promise<boolean>((resolve) => {
+      setContent({ showCancel: true, ...newContent });
+      setIsOpen(true);
+      promiseCallbacks.current = { resolve };
     });
-    setIsOpen(true);
   };
 
   const hideModal = () => {
     setIsOpen(false);
     setContent(null);
-    setIsProcessing(false);
+    promiseCallbacks.current = null;
   };
 
-  const handleConfirm = async () => {
-    if (content?.onConfirm) {
-      setIsProcessing(true);
-      try {
-        await content.onConfirm();
-      } finally {
-        hideModal();
-      }
-    } else {
-      hideModal();
-    }
+  const handleResolve = (value: boolean) => {
+    promiseCallbacks.current?.resolve(value);
+    hideModal();
   };
 
   return (
-    <ModalContext.Provider value={{ showModal, hideModal }}>
+    <ModalContext.Provider value={{ showModal, hideModal: () => handleResolve(false) }}>
       {children}
       {content && (
-        <Modal show={isOpen} size="md" popup onClose={hideModal}>
+        <Modal show={isOpen} size="md" popup onClose={() => handleResolve(false)}>
           <Modal.Header />
           <Modal.Body>
             <div className="text-center">
@@ -72,11 +64,11 @@ export const ModalProvider: React.FC<{ children: ReactNode }> = ({ children }) =
               </h3>
               {typeof content.body === 'string' ? <p>{content.body}</p> : content.body}
               <div className="flex justify-center gap-4 mt-6">
-                <Button color="failure" onClick={handleConfirm} isProcessing={isProcessing}>
+                <Button color="failure" onClick={() => handleResolve(true)}>
                   {content.confirmText || 'Sí, estoy seguro'}
                 </Button>
                 {content.showCancel && (
-                    <Button color="gray" onClick={hideModal} disabled={isProcessing}>
+                    <Button color="gray" onClick={() => handleResolve(false)}>
                         {content.cancelText || 'No, cancelar'}
                     </Button>
                 )}

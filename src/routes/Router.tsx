@@ -29,6 +29,8 @@ const ConfiguracionPage = Loadable(lazy(() => import('../views/Apariencia/config
 const GestionEstudiantes = Loadable(lazy(() => import('../views/docente/GestionEstudiantes')));
 const DocenteEventos = Loadable(lazy(() => import('../views/docente/DocenteEventos')));
 const ResponsableEventos = Loadable(lazy(() => import('../views/responsable/ResponsableEventos')));
+const ListarSolicitudesCambio = Loadable(lazy(() => import('../views/cdc/ListarSolicitudesCambio')));
+const DetalleSolicitudCambio = Loadable(lazy(() => import('../views/cdc/DetalleSolicitudCambio')));
 
 const MisEventos = Loadable(lazy(() => import('../views/estudiante/MisEventos')));
 
@@ -74,6 +76,8 @@ const Router = [
               { path: '/report-error', exact: true, element: <ErrorReport /> },
               { path: '/responsable/eventos', exact: true, element: <ResponsableEventos /> },
               { path: '/estudiante/mis-eventos', exact: true, element: <MisEventos /> },
+              { path: '/cdc/solicitudes', exact: true, element: <ListarSolicitudesCambio /> },
+              { path: '/cdc/solicitud/:id', exact: true, element: <DetalleSolicitudCambio /> },
             ],
           },
         ],

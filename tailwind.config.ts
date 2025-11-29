@@ -2,6 +2,7 @@ import type { Config } from "tailwindcss";
 // --- CORRECCIÓN DE SINTAXIS: Usar 'import' en lugar de 'require' ---
 import flowbite from "flowbite-react/tailwind";
 import flowbitePlugin from "flowbite/plugin";
+import typographyPlugin from "@tailwindcss/typography";
 
 const config: Config = {
   darkMode: "class",
@@ -102,6 +103,7 @@ const config: Config = {
   plugins: [
     // Usamos la variable importada
     flowbitePlugin,
+    typographyPlugin,
   ],
 };
 
