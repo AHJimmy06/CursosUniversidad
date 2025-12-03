@@ -13,7 +13,7 @@ interface EventoCardProps {
 
 const EventoCard: React.FC<EventoCardProps> = ({ evento, showCalificarButton, showValidarMatriculasButton, showEditButton }) => {
   return (
-    <Card className="h-full flex flex-col">
+    <Card className="h-full flex flex-col hover:shadow-lg transition-shadow duration-300">
       <div className="aspect-video w-full overflow-hidden rounded-lg">
         {evento.imagen_url ? (
           <img

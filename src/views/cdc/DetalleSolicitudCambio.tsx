@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../../utils/supabaseClient';
-import { SolicitudDeCambio, RfcPir } from '../../types/cdc';
+import { SolicitudDeCambio, RfcPir, ChangeRequestStatus } from '../../types/cdc';
 import { Spinner, Alert, Card, Label, TextInput, Button, Select, Badge, Textarea } from 'flowbite-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -92,10 +92,17 @@ const DetalleSolicitudCambio = () => {
   const [savingLideres, setSavingLideres] = useState(false);
   const [searchQueryLideres, setSearchQueryLideres] = useState('');
 
+  // State for ECAB members
+  const [potentialEcabMembers, setPotentialEcabMembers] = useState<CabMember[]>([]);
+  const [stagedEcabMembers, setStagedEcabMembers] = useState<CabMember[]>([]);
+  const [loadingEcab, setLoadingEcab] = useState(true);
+  const [savingEcab, setSavingEcab] = useState(false);
+
   // State for Votes
   const [votos, setVotos] = useState<Voto[]>([]);
   const [loadingVotos, setLoadingVotos] = useState(true);
   const [comentarioVoto, setComentarioVoto] = useState('');
+  const [comentarioVotoEcab, setComentarioVotoEcab] = useState('');
   const [isSubmittingVote, setIsSubmittingVote] = useState(false);
 
   // State for PIR
@@ -106,7 +113,9 @@ const DetalleSolicitudCambio = () => {
 
   // UI State
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchQueryEcab, setSearchQueryEcab] = useState('');
   const [selectedModel, setSelectedModel] = useState<SolicitudDeCambio['modelo']>('normal');
+  const [selectedPriority, setSelectedPriority] = useState<SolicitudDeCambio['prioridad']>('media');
   const [savingStatus, setSavingStatus] = useState(false);
   const [prLink, setPrLink] = useState('');
 
@@ -132,6 +141,7 @@ const DetalleSolicitudCambio = () => {
 
         setSolicitud(solicitudData as SolicitudDeCambio);
         setSelectedModel(solicitudData.modelo);
+        setSelectedPriority(solicitudData.prioridad);
         
         const [
           cabUsersResponse, 
@@ -140,6 +150,7 @@ const DetalleSolicitudCambio = () => {
           lideresResponse, 
           assignedLideresResponse,
           pirResponse,
+          ecabUsersResponse, // Add response for ECAB members
         ] = await Promise.all([
           supabase.rpc('get_users_by_cdc_role', { role_name: 'Miembro CAB' }),
           supabase.from('rfc_cab_miembros').select('miembro_id').eq('solicitud_id', id),
@@ -147,6 +158,7 @@ const DetalleSolicitudCambio = () => {
           supabase.rpc('get_users_by_cdc_role', { role_name: 'Líder Técnico' }),
           supabase.from('rfc_desarrolladores_asignados').select('desarrollador_id').eq('solicitud_id', id),
           supabase.from('rfc_pir').select('*').eq('solicitud_id', id).limit(1).maybeSingle(),
+          supabase.rpc('get_users_by_cdc_role', { role_name: 'Miembro ECAB' }), // Fetch ECAB members
         ]);
 
         if (!isActive) return;
@@ -159,6 +171,13 @@ const DetalleSolicitudCambio = () => {
         if (assignedCabError) throw assignedCabError;
         const assignedCabIds = assignedCab.map(m => m.miembro_id);
         setStagedCabMembers(cabUsers.filter((u: CabMember) => assignedCabIds.includes(u.id)));
+
+        const { data: ecabUsers, error: ecabUsersError } = ecabUsersResponse;
+        if (ecabUsersError) throw ecabUsersError;
+        setPotentialEcabMembers(ecabUsers);
+        // For emergencies, all potential ECAB members are considered staged by default
+        setStagedEcabMembers(ecabUsers); 
+        setLoadingEcab(false);
 
         const { data: votosData, error: votosError } = votosResponse;
         if(votosError) throw votosError;
@@ -247,6 +266,13 @@ const DetalleSolicitudCambio = () => {
     return stagedLideres.some(l => String(l.id) === String(currentUserProfile.id));
   }, [currentUserProfile, stagedLideres]);
 
+  const isEcabMember = useMemo(() => {
+    if (!currentUserProfile?.id || stagedEcabMembers.length === 0) {
+      return false;
+    }
+    return stagedEcabMembers.some(m => String(m.id) === String(currentUserProfile.id));
+  }, [currentUserProfile, stagedEcabMembers]);
+
   const canManageRequest = useMemo(() => {
     const roles = currentUserProfile?.cdc_roles || [];
     return roles.includes('administrador') || roles.includes('Gestor de Cambios');
@@ -260,6 +286,15 @@ const DetalleSolicitudCambio = () => {
       `${member.nombre1} ${member.apellido1}`.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [searchQuery, potentialCabMembers, stagedCabMembers]);
+
+  const searchResultsEcab = useMemo(() => {
+    if (!searchQueryEcab) return [];
+    const stagedIds = new Set(stagedCabMembers.map(m => m.id));
+    return potentialEcabMembers.filter(member =>
+      !stagedIds.has(member.id) &&
+      `${member.nombre1} ${member.apellido1}`.toLowerCase().includes(searchQueryEcab.toLowerCase())
+    );
+  }, [searchQueryEcab, potentialEcabMembers, stagedCabMembers]);
 
   const searchResultsLideres = useMemo(() => {
     if (!searchQueryLideres) return [];
@@ -279,24 +314,6 @@ const DetalleSolicitudCambio = () => {
     setStagedCabMembers(prev => prev.filter(m => m.id !== memberId));
   };
 
-  const handleSaveCabMembers = async () => {
-    if (!id) return;
-    setSavingCab(true);
-    try {
-      await supabase.from('rfc_cab_miembros').delete().eq('solicitud_id', id);
-      if (stagedCabMembers.length > 0) {
-        const newMembers = stagedCabMembers.map(member => ({ solicitud_id: id, miembro_id: member.id }));
-        const { error: insertError } = await supabase.from('rfc_cab_miembros').insert(newMembers);
-        if (insertError) throw insertError;
-      }
-      showModal({ title: 'Éxito', body: 'Miembros del CAB actualizados correctamente.', showCancel: false, confirmText: 'Aceptar' });
-    } catch (err: any) {
-      showModal({ title: 'Error', body: `No se pudo guardar: ${err.message}`, showCancel: false, confirmText: 'Cerrar' });
-    } finally {
-      setSavingCab(false);
-    }
-  };
-
   const handleAddLider = (lider: LiderTecnico) => {
     setStagedLideres(prev => [...prev, lider]);
     setSearchQueryLideres('');
@@ -306,57 +323,36 @@ const DetalleSolicitudCambio = () => {
     setStagedLideres(prev => prev.filter(l => l.id !== liderId));
   };
 
-  const handleSaveLideres = async () => {
-    if (!id || !solicitud) return;
-    setSavingLideres(true);
-    try {
-      await supabase.from('rfc_desarrolladores_asignados').delete().eq('solicitud_id', id);
-      if (stagedLideres.length > 0) {
-        const newAssignments = stagedLideres.map(lider => ({
-          solicitud_id: id,
-          desarrollador_id: lider.id
-        }));
-        await supabase.from('rfc_desarrolladores_asignados').insert(newAssignments);
-      }
-      showModal({ title: 'Éxito', body: 'Líderes técnicos asignados correctamente.', showCancel: false, confirmText: 'Aceptar' });
-    } catch (err: any) {
-      showModal({ title: 'Error', body: `No se pudo guardar la asignación: ${err.message}`, showCancel: false, confirmText: 'Cerrar' });
-    } finally {
-      setSavingLideres(false);
-    }
-  };
-
-  const handleSaveDetails = async () => {
-    if (!id || !solicitud) return;
-    setSavingStatus(true);
-    try {
-      const { error } = await supabase
-        .from('solicitudes_de_cambio')
-        .update({ modelo: selectedModel })
-        .eq('id', id);
-      if (error) throw error;
-      setSolicitud(prev => prev ? { ...prev, modelo: selectedModel } : null);
-      showModal({ title: 'Éxito', body: 'El modelo ha sido actualizado.', showCancel: false, confirmText: 'Aceptar' });
-    } catch (err: any) {
-      showModal({ title: 'Error', body: `Error: ${err.message}`, showCancel: false, confirmText: 'Cerrar' });
-    } finally {
-      setSavingStatus(false);
-    }
-  };
-
   const handleChangeStatus = async (newStatus: SolicitudDeCambio['estado']) => {
     if (!id) return;
-    const confirmed = await showModal({
-        title: 'Confirmar Cambio de Estado',
-        body: `¿Estás seguro de que quieres cambiar el estado a "${newStatus.replace(/_/g, ' ')}"?`,
-        confirmText: 'Sí, cambiar estado'
-    });
+
+    // Don't show confirmation modal for automatic status changes from voting
+    const confirmed = ['aprobada', 'rechazada'].includes(newStatus) 
+      ? true 
+      : await showModal({
+          title: 'Confirmar Cambio de Estado',
+          body: `¿Estás seguro de que quieres cambiar el estado a "${newStatus.replace(/_/g, ' ')}"?`,
+          confirmText: 'Sí, cambiar estado'
+      });
+
     if (!confirmed) return;
     setSavingStatus(true);
+    
     try {
-        await supabase.from('solicitudes_de_cambio').update({ estado: newStatus }).eq('id', id);
-        setSolicitud(prev => prev ? { ...prev, estado: newStatus } : null);
+        await logCdcAction('ESTADO_CAMBIADO', { valor_anterior: solicitud?.estado, valor_nuevo: newStatus });
+
+        const { data: updatedSolicitud, error } = await supabase
+          .from('solicitudes_de_cambio')
+          .update({ estado: newStatus })
+          .eq('id', id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        
+        setSolicitud(updatedSolicitud as SolicitudDeCambio);
         showModal({ title: 'Éxito', body: 'Estado actualizado correctamente.', showCancel: false, confirmText: 'Aceptar' });
+        
         if (newStatus === 'completada' && solicitud?.github_issue_number) {
             supabase.functions.invoke('update-github-issue-status', {
               body: { issue_number: solicitud.github_issue_number, state: 'closed' }
@@ -402,33 +398,40 @@ const DetalleSolicitudCambio = () => {
 
   const handleCastVote = async (decision: boolean) => {
     if (!id || !currentUserProfile) return;
+    
+    const comment = solicitud?.modelo === 'emergencia' ? comentarioVotoEcab : comentarioVoto;
+    if (!decision && !comment) {
+      showModal({ title: 'Comentario Requerido', body: 'El comentario es obligatorio al rechazar una solicitud.', showCancel: false, confirmText: 'Entendido' });
+      return;
+    }
+
     setIsSubmittingVote(true);
     try {
-      // Usamos upsert para permitir cambiar el voto.
-      // Si ya existe un voto para este usuario y solicitud, se actualizará.
-      // Si no, se insertará uno nuevo.
       const { data: newVote, error } = await supabase.from('rfc_aprobaciones').upsert({
         solicitud_id: id,
         aprobador_id: currentUserProfile.id,
         decision,
-        comentarios: comentarioVoto
+        comentarios: comment
       }, {
         onConflict: 'solicitud_id,aprobador_id'
       }).select('*, aprobador:aprobador_id(nombre1, apellido1)').single();
 
-      if (error) {
-        // El upsert no debería fallar por duplicados, pero manejamos otros errores.
-        throw error;
-      }
+      if (error) throw error;
       
-      setComentarioVoto('');
+      // Log the vote action
+      await logCdcAction('VOTO_EMITIDO', { 
+        notas: `Decisión: ${decision ? 'Aprobado' : 'Rechazado'}. Comentario: ${comment}` 
+      });
 
-      // Actualizamos el estado de los votos, reemplazando el voto anterior si existía.
+      setComentarioVoto('');
+      setComentarioVotoEcab('');
+
       const updatedVotes = votos.filter(v => String(v.aprobador_id) !== String(currentUserProfile.id));
       updatedVotes.push(newVote as Voto);
       setVotos(updatedVotes);
 
       await checkAndAutoUpdateStatus(updatedVotes);
+
     } catch (err: any) {
       showModal({ title: 'Error', body: err.message, showCancel: false, confirmText: 'Cerrar' });
     } finally {
@@ -442,28 +445,241 @@ const DetalleSolicitudCambio = () => {
     </div>
   );
 
-  const renderActions = () => {
-    if (!solicitud) return null;
-    const ActionButton = ({ onClick, children, color = 'info' }: { onClick: () => void; children: React.ReactNode; color?: string }) => (
-      <Button color={color} onClick={onClick} isProcessing={savingStatus} disabled={savingStatus}>
-        {children}
-      </Button>
+  const logCdcAction = async (
+    accion: string,
+    details: { valor_anterior?: any; valor_nuevo?: any; notas?: string } = {}
+  ) => {
+    if (!currentUserProfile || !solicitud) return;
+    try {
+      await supabase.from('cdc_audit_log').insert({
+        solicitud_id: solicitud.id,
+        actor_id: currentUserProfile.id,
+        accion,
+        ...details,
+      });
+    } catch (logError) {
+      console.error('Failed to log CDC action:', logError); // Log silently without alerting the user
+    }
+  };
+
+  const handlePrimaryAction = async () => {
+    if (!id || !solicitud) return;
+
+    const confirmTextMap = {
+      estandar: 'Sí, aprobar',
+      normal: 'Sí, enviar a CAB',
+      emergencia: 'Sí, enviar a ECAB',
+    };
+
+    const confirmed = await showModal({
+        title: 'Confirmar Acción',
+        body: `Estás a punto de guardar los cambios y mover la solicitud al siguiente estado. ¿Continuar?`,
+        confirmText: confirmTextMap[selectedModel],
+    });
+
+    if (!confirmed) return;
+    setSavingStatus(true);
+
+    try {
+      let nextStatus: ChangeRequestStatus = solicitud.estado;
+      
+            // Log model change if it's different
+      
+            if (solicitud.modelo !== selectedModel) {
+      
+              await logCdcAction('MODELO_CAMBIADO', { valor_anterior: solicitud.modelo, valor_nuevo: selectedModel });
+      
+            }
+      
+      
+      
+            // Log priority change if it's different
+      
+            if (solicitud.prioridad !== selectedPriority) {
+      
+              await logCdcAction('PRIORIDAD_CAMBIADA', { valor_anterior: solicitud.prioridad, valor_nuevo: selectedPriority });
+      
+            }
+      
+      
+      
+            // Save assignments based on model
+      
+            switch (selectedModel) {
+      
+              case 'estandar':
+      
+                nextStatus = 'aprobada';
+      
+                await supabase.from('rfc_desarrolladores_asignados').delete().eq('solicitud_id', id);
+      
+                if (stagedLideres.length > 0) {
+      
+                  const newAssignments = stagedLideres.map(lider => ({ solicitud_id: id, desarrollador_id: lider.id }));
+      
+                  await supabase.from('rfc_desarrolladores_asignados').insert(newAssignments);
+      
+                  // Log leader assignments
+      
+                  for (const lider of stagedLideres) {
+      
+                    await logCdcAction('LIDER_ASIGNADO', { notas: `${lider.nombre1} ${lider.apellido1}` });
+      
+                  }
+      
+                }
+      
+                break;
+      
+              case 'normal':
+      
+              case 'emergencia':
+      
+                nextStatus = 'pendiente_cab';
+      
+                await supabase.from('rfc_cab_miembros').delete().eq('solicitud_id', id);
+      
+                if (stagedCabMembers.length > 0) {
+      
+                  const newMembers = stagedCabMembers.map(member => ({ solicitud_id: id, miembro_id: member.id }));
+      
+                  await supabase.from('rfc_cab_miembros').insert(newMembers);
+      
+                  // Log member assignments
+      
+                  const logNotaPrefix = selectedModel === 'normal' ? 'Miembro CAB Asignado' : 'Miembro ECAB Asignado';
+      
+                  for (const member of stagedCabMembers) {
+      
+                    await logCdcAction('MIEMBRO_ASIGNADO', { notas: `${logNotaPrefix}: ${member.nombre1} ${member.apellido1}` });
+      
+                  }
+      
+                }
+      
+                
+      
+                await supabase.from('rfc_desarrolladores_asignados').delete().eq('solicitud_id', id);
+      
+                if (stagedLideres.length > 0) {
+      
+                  const newAssignments = stagedLideres.map(lider => ({ solicitud_id: id, desarrollador_id: lider.id }));
+      
+                  await supabase.from('rfc_desarrolladores_asignados').insert(newAssignments);
+      
+                  // Log leader assignments
+      
+                  for (const lider of stagedLideres) {
+      
+                    await logCdcAction('LIDER_ASIGNADO', { notas: `Líder Técnico: ${lider.nombre1} ${lider.apellido1}` });
+      
+                  }
+      
+                }
+      
+                break;
+      
+            }
+      
+            
+      
+            // Log status change
+      
+            if (solicitud.estado !== nextStatus) {
+      
+              await logCdcAction('ESTADO_CAMBIADO', { valor_anterior: solicitud.estado, valor_nuevo: nextStatus });
+      
+            }
+      
+      
+      
+            const updateData: Partial<SolicitudDeCambio> = { 
+      
+              modelo: selectedModel,
+      
+              prioridad: selectedPriority,
+      
+              estado: nextStatus 
+      
+            };
+      
+      
+      
+            if (selectedModel === 'emergencia') {
+      
+              updateData.estado_ecab = 'pendiente_aprobacion_ecab' as any;
+      
+            }
+
+      const { data: updatedSolicitud, error } = await supabase.from('solicitudes_de_cambio').update(updateData).eq('id', id).select().single();
+      
+      if (error) throw error;
+
+      setSolicitud(updatedSolicitud as SolicitudDeCambio);
+      showModal({ title: 'Éxito', body: 'La solicitud ha sido procesada correctamente.', showCancel: false, confirmText: 'Aceptar' });
+
+    } catch (err: any) {
+      showModal({ title: 'Error', body: `Error al procesar la solicitud: ${err.message}`, showCancel: false, confirmText: 'Cerrar' });
+    } finally {
+      setSavingStatus(false);
+    }
+  };
+
+  const renderPrimaryAction = () => {
+    if (!solicitud || !['borrador', 'pendiente_revision'].includes(solicitud.estado)) return null;
+
+    const ActionButton = ({ onClick, children, color = 'info', disabled = false, title = '' }: { onClick: () => void; children: React.ReactNode; color?: string; disabled?: boolean, title?: string }) => (
+      <div title={title}>
+        <Button color={color} onClick={onClick} isProcessing={savingStatus} disabled={savingStatus || disabled} fullSized>
+          {children}
+        </Button>
+      </div>
     );
-    switch (solicitud.estado) {
-      case 'borrador':
-        return <ActionButton onClick={() => handleChangeStatus('pendiente_revision')}>Enviar a Revisión</ActionButton>;
-      case 'pendiente_revision':
-        return <ActionButton onClick={() => handleChangeStatus('pendiente_cab')}>Enviar a CAB para Votación</ActionButton>;
-      case 'aprobada':
-        return <ActionButton onClick={() => handleChangeStatus('en_progreso')}>Iniciar Implementación</ActionButton>;
-      case 'en_progreso':
-        return <ActionButton onClick={() => handleChangeStatus('completada')}>Marcar como Completada</ActionButton>;
+
+    switch (selectedModel) {
+      case 'estandar':
+        const isStandardDisabled = stagedLideres.length === 0;
+        return (
+          <ActionButton
+            onClick={() => handlePrimaryAction()}
+            color="success"
+            disabled={isStandardDisabled}
+            title={isStandardDisabled ? "Debe asignar al menos un líder técnico" : "Aprobar y guardar asignación"}
+          >
+            Aprobar (Estándar)
+          </ActionButton>
+        );
+      case 'normal':
+         const isNormalDisabled = stagedCabMembers.length === 0;
+        return (
+          <ActionButton
+            onClick={() => handlePrimaryAction()}
+            color="info"
+            disabled={isNormalDisabled}
+            title={isNormalDisabled ? "Debe asignar al menos un miembro del CAB" : "Guardar y enviar a votación"}
+          >
+            Enviar a CAB y Guardar
+          </ActionButton>
+        );
+      case 'emergencia':
+        const isEmergencyDisabled = stagedCabMembers.length === 0;
+        return (
+          <ActionButton
+            onClick={() => handlePrimaryAction()}
+            color="failure"
+            disabled={isEmergencyDisabled}
+            title={isEmergencyDisabled ? "Debe asignar al menos un miembro del ECAB" : "Guardar y enviar a aprobación urgente"}
+          >
+            Enviar a ECAB y Guardar
+          </ActionButton>
+        );
       default:
         return null;
     }
   };
 
-  const showVotingCard = isCabMemberForThisRequest && solicitud?.estado === 'pendiente_cab';
+  const showVotingCard = isCabMemberForThisRequest && solicitud?.estado === 'pendiente_cab' && solicitud?.modelo === 'normal';
+  const showEcabVotingCard = isEcabMember && solicitud?.estado === 'pendiente_cab' && solicitud?.modelo === 'emergencia';
   const showPirCard = canManageRequest && ['completada', 'pendiente_pir', 'cerrada'].includes(solicitud?.estado || '');
   const showAdminCards = canManageRequest && !['cerrada', 'cancelada', 'rechazada'].includes(solicitud?.estado || '');
 
@@ -495,9 +711,6 @@ const DetalleSolicitudCambio = () => {
           )}
 
           <Card><h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">Descripción</h2>{renderMarkdown(solicitud.descripcion, 'No proporcionada')}</Card>
-          <Card><h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">Justificación</h2>{renderMarkdown(solicitud.justificacion, 'No proporcionada')}</Card>
-          <Card><h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">Impacto Potencial</h2>{renderMarkdown(solicitud.impacto_potencial, 'No proporcionado')}</Card>
-          
           {showPirCard && !pirData && (
              <Card>
                 <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">Revisión Post-Implementación (PIR)</h2>
@@ -605,25 +818,32 @@ const DetalleSolicitudCambio = () => {
             </div>
           </Card>
 
-          {isAssignedLiderTecnico && solicitud.estado === 'en_progreso' && (
+          {isAssignedLiderTecnico && (solicitud.estado === 'aprobada' || solicitud.estado === 'en_progreso') && (
             <Card>
-              <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">Finalizar Desarrollo</h2>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="pr-link" value="Enlace del Pull Request (PR)" className="mb-2 block" />
-                  <TextInput
-                    id="pr-link"
-                    type="url"
-                    placeholder="https://github.com/..."
-                    required
-                    value={prLink}
-                    onChange={(e) => setPrLink(e.target.value)}
-                  />
-                </div>
-                <Button onClick={handleCompleteDevelopment} color="success" isProcessing={savingStatus} disabled={!prLink || savingStatus}>
-                  Marcar como Completada
+              <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">Acciones de Desarrollo</h2>
+              {solicitud.estado === 'aprobada' && (
+                <Button color="success" onClick={() => handleChangeStatus('en_progreso')} isProcessing={savingStatus} disabled={savingStatus}>
+                  Iniciar Implementación
                 </Button>
-              </div>
+              )}
+              {solicitud.estado === 'en_progreso' && (
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="pr-link" value="Enlace del Pull Request (PR)" className="mb-2 block" />
+                    <TextInput
+                      id="pr-link"
+                      type="url"
+                      placeholder="https://github.com/..."
+                      required
+                      value={prLink}
+                      onChange={(e) => setPrLink(e.target.value)}
+                    />
+                  </div>
+                  <Button onClick={handleCompleteDevelopment} color="success" isProcessing={savingStatus} disabled={!prLink || savingStatus}>
+                    Marcar como Completada
+                  </Button>
+                </div>
+              )}
             </Card>
           )}
           
@@ -643,83 +863,168 @@ const DetalleSolicitudCambio = () => {
             </Card>
           )}
 
+          {showEcabVotingCard && (
+            <Card>
+              <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">Emitir Voto de Emergencia (ECAB)</h2>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="ecab-vote-comment" value="Comentarios (Requerido para Rechazo)" />
+                  <Textarea id="ecab-vote-comment" value={comentarioVotoEcab} onChange={(e) => setComentarioVotoEcab(e.target.value)} rows={3} />
+                </div>
+                <div className="flex gap-4">
+                  <Button color="success" onClick={() => handleCastVote(true)} isProcessing={isSubmittingVote} disabled={isSubmittingVote} className="flex-1">Aprobar (ECAB)</Button>
+                  <Button color="failure" onClick={() => handleCastVote(false)} isProcessing={isSubmittingVote} disabled={isSubmittingVote} className="flex-1">Rechazar (ECAB)</Button>
+                </div>
+              </div>
+            </Card>
+          )}
+
           {showAdminCards && (
             <>
-                <Card>
-                  <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">Administrar Solicitud</h2>
-                  
-                  {['borrador', 'pendiente_revision'].includes(solicitud.estado) && (
-                    <div className="space-y-4 mb-4 border-b pb-4">
-                      <Label htmlFor="model-select" value="Editar Modelo" />
-                      <Select id="model-select" value={selectedModel} onChange={(e) => setSelectedModel(e.target.value as SolicitudDeCambio['modelo'])}>
-                        <option value="normal">Normal</option>
-                        <option value="estandar">Estándar</option>
-                        <option value="emergencia">Emergencia</option>
-                      </Select>
-                      <Button onClick={handleSaveDetails} isProcessing={savingStatus} disabled={savingStatus || solicitud.modelo === selectedModel} size="sm">Guardar Modelo</Button>
-                    </div>
-                  )}
-
-                  <div className="space-y-4">
-                      <h3 className="text-md font-semibold">Acciones de Flujo</h3>
-                      {renderActions()}
-                      <Button color="failure" size="sm" className="mt-2" onClick={() => handleChangeStatus('cancelada')}>
-                            Cancelar Solicitud
-                        </Button>
-                  </div>
-                </Card>
-
               <Card>
-                <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">Miembros del CAB</h2>
-                {loadingCab ? <Spinner /> : (
-                  <>
-                    {['borrador', 'pendiente_revision'].includes(solicitud.estado) ? (
-                      <div className="space-y-4">
-                        <div>
-                          <Label htmlFor="cab-search" value="Añadir Miembro" />
-                          <TextInput id="cab-search" type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Buscar..." />
-                          {searchResults.length > 0 && (
-                            <div key="cab-search-results" className="mt-2 border rounded-md bg-gray-50 dark:bg-gray-700 max-h-40 overflow-y-auto">
-                              {searchResults.map(member => (
-                                <div key={member.id} onClick={() => handleAddMember(member)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer">
-                                  {member.nombre1} {member.apellido1}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <div>
-                          <h3 className="text-md font-semibold mb-2">Asignados</h3>
-                          {stagedCabMembers.length > 0 ? (
+                <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">Administrar Solicitud</h2>
+
+                {['borrador', 'pendiente_revision'].includes(solicitud.estado) && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="model-select" value="Modelo de Cambio" />
+                        <Select id="model-select" value={selectedModel} onChange={(e) => setSelectedModel(e.target.value as SolicitudDeCambio['modelo'])}>
+                          <option value="normal">Normal</option>
+                          <option value="estandar">Estándar</option>
+                          <option value="emergencia">Emergencia</option>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor="priority-select" value="Prioridad" />
+                        <Select id="priority-select" value={selectedPriority} onChange={(e) => setSelectedPriority(e.target.value as SolicitudDeCambio['prioridad'])}>
+                          <option value="baja">Baja</option>
+                          <option value="media">Media</option>
+                          <option value="alta">Alta</option>
+                          <option value="critica">Crítica</option>
+                        </Select>
+                      </div>
+                    </div>
+
+                    {/* Primary Action Button will be rendered here */}
+                    <div className="pt-4 border-t">
+                      {renderPrimaryAction()}
+                    </div>
+                  </div>
+                )}
+
+                {/* Secondary Actions */}
+                <div className="pt-4 border-t mt-4">
+                  <Button color="failure" size="sm" onClick={() => handleChangeStatus('cancelada')}>
+                    Cancelar Solicitud
+                  </Button>
+                </div>
+              </Card>
+
+              {selectedModel === 'normal' && (
+                <Card>
+                  <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">Miembros del CAB</h2>
+                  {loadingCab ? <Spinner /> : (
+                    <>
+                      {['borrador', 'pendiente_revision'].includes(solicitud.estado) ? (
+                        <div className="space-y-4">
+                          <div>
+                            <Label htmlFor="cab-search" value="Añadir Miembro" />
+                            <TextInput id="cab-search" type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Buscar..." />
+                            {searchResults.length > 0 && (
+                              <div key="cab-search-results" className="mt-2 border rounded-md bg-gray-50 dark:bg-gray-700 max-h-40 overflow-y-auto">
+                                {searchResults.map(member => (
+                                  <div key={member.id} onClick={() => handleAddMember(member)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer">
+                                    {member.nombre1} {member.apellido1}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <h3 className="text-md font-semibold mb-2">Asignados</h3>
+                            {stagedCabMembers.length > 0 ? (
+                              <ul className="space-y-2">
+                                {stagedCabMembers.map(member => (
+                                  <li key={member.id} className="flex justify-between bg-gray-100 dark:bg-gray-700 p-2 rounded-md">
+                                    <span>{member.nombre1} {member.apellido1}</span>
+                                    <button onClick={() => handleRemoveMember(member.id)} className="text-red-500"><HiX /></button>
+                                  </li>
+                                ))}
+                              </ul>
+                                                        ) : <p className="text-sm text-gray-500">Sin miembros.</p>}
+                                                    </div>
+                                                  </div>
+                                                ) : (
+                                                  <div>
+                                                    <h3 className="text-md font-semibold mb-2">Asignados</h3>                          {stagedCabMembers.length > 0 ? (
                             <ul className="space-y-2">
                               {stagedCabMembers.map(member => (
-                                <li key={member.id} className="flex justify-between bg-gray-100 dark:bg-gray-700 p-2 rounded-md">
+                                <li key={member.id} className="bg-gray-100 dark:bg-gray-700 p-2 rounded-md">
                                   <span>{member.nombre1} {member.apellido1}</span>
-                                  <button onClick={() => handleRemoveMember(member.id)} className="text-red-500"><HiX /></button>
                                 </li>
                               ))}
                             </ul>
-                          ) : <p className="text-sm text-gray-500">Sin miembros.</p>}
+                          ) : <p className="text-sm text-gray-500">Sin miembros asignados.</p>}
                         </div>
-                        <Button onClick={handleSaveCabMembers} isProcessing={savingCab} disabled={savingCab}>Guardar CAB</Button>
-                      </div>
-                    ) : (
-                      <div>
-                        <h3 className="text-md font-semibold mb-2">Asignados</h3>
-                        {stagedCabMembers.length > 0 ? (
-                          <ul className="space-y-2">
-                            {stagedCabMembers.map(member => (
-                              <li key={member.id} className="bg-gray-100 dark:bg-gray-700 p-2 rounded-md">
-                                <span>{member.nombre1} {member.apellido1}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : <p className="text-sm text-gray-500">Sin miembros asignados.</p>}
-                      </div>
-                    )}
-                  </>
-                )}
-              </Card>
+                      )}
+                    </>
+                  )}
+                </Card>
+              )}
+
+              {selectedModel === 'emergencia' && (
+                <Card>
+                  <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">Miembros del ECAB (Comité de Emergencia)</h2>
+                  {loadingEcab ? <Spinner /> : (
+                    <div className="space-y-4">
+                      {['borrador', 'pendiente_revision'].includes(solicitud.estado) ? (
+                        <>
+                          <div>
+                            <Label htmlFor="ecab-search" value="Añadir Miembro del ECAB" />
+                            <TextInput id="ecab-search" type="text" value={searchQueryEcab} onChange={(e) => setSearchQueryEcab(e.target.value)} placeholder="Buscar por nombre..." />
+                            {searchResultsEcab.length > 0 && (
+                              <div className="mt-2 border rounded-md bg-gray-50 dark:bg-gray-700 max-h-40 overflow-y-auto">
+                                {searchResultsEcab.map(member => (
+                                  <div key={member.id} onClick={() => handleAddMember(member)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer">
+                                    {member.nombre1} {member.apellido1}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <h3 className="text-md font-semibold mb-2">Asignados al ECAB</h3>
+                            {stagedCabMembers.length > 0 ? (
+                              <ul className="space-y-2">
+                                {stagedCabMembers.map(member => (
+                                  <li key={member.id} className="flex justify-between bg-gray-100 dark:bg-gray-700 p-2 rounded-md">
+                                    <span>{member.nombre1} {member.apellido1}</span>
+                                    <button onClick={() => handleRemoveMember(member.id)} className="text-red-500"><HiX /></button>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : <p className="text-sm text-gray-500">Sin miembros asignados.</p>}
+                          </div>
+                        </>
+                      ) : (
+                        <div>
+                          <h3 className="text-md font-semibold mb-2">Miembros Asignados</h3>
+                          {stagedCabMembers.length > 0 ? (
+                            <ul className="space-y-2">
+                              {stagedCabMembers.map(member => (
+                                <li key={member.id} className="bg-gray-100 dark:bg-gray-700 p-2 rounded-md">
+                                  <span>{member.nombre1} {member.apellido1}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : <p className="text-sm text-gray-500">No hay miembros del ECAB asignados.</p>}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </Card>
+              )}
           
               <Card>
                 <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">Líderes Técnicos</h2>
@@ -737,15 +1042,17 @@ const DetalleSolicitudCambio = () => {
                               ))}
                             </div>
                           )}
-                          <div className="flex flex-wrap gap-2 mt-4 mb-4">
-                            {stagedLideres.map(lider => (
-                              <Badge key={lider.id} color="info" className="flex gap-2 p-2">
-                                {lider.nombre1} {lider.apellido1}
-                                <button onClick={() => handleRemoveLider(lider.id)} className="ml-2"><HiX /></button>
-                              </Badge>
-                            ))}
-                          </div>
-                          <Button onClick={handleSaveLideres} isProcessing={savingLideres} disabled={savingLideres || stagedLideres.length === 0}>Guardar Asignación</Button>
+                          <h3 className="text-md font-semibold mb-2">Asignados</h3>
+                          {stagedLideres.length > 0 ? (
+                            <ul className="space-y-2">
+                              {stagedLideres.map(lider => (
+                                <li key={lider.id} className="flex justify-between bg-gray-100 dark:bg-gray-700 p-2 rounded-md">
+                                  <span>{lider.nombre1} {lider.apellido1}</span>
+                                  <button onClick={() => handleRemoveLider(lider.id)} className="text-red-500"><HiX /></button>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : <p className="text-sm text-gray-500">Sin líderes asignados.</p>}
                         </div>
                       ) : (
                         <div>

@@ -103,14 +103,14 @@ const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
                 </div>
                 <div>
                   <div className="mb-2 block">
-                    <Label htmlFor="idResponsableEvento" value="ID del Responsable del Evento" />
+                    <Label htmlFor="idResponsableEvento" value="Responsable del Evento" />
                   </div>
                   <SearchResponsable onSelectResponsable={handleResponsableSelect} />
                 </div>
               </div>
             </div>
             <div className="col-span-12 flex gap-3">
-              <Button type="submit" color={'primary'}>Crear Curso</Button>
+              <Button type="submit" color={'primary'}>Crear Evento</Button>
             </div>
           </div>
         </form>
