@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Label, TextInput, Alert, FileInput } from "flowbite-react";
+import { Button, Label, TextInput, Alert, FileInput, Select } from "flowbite-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "src/utils/supabaseClient";
 
@@ -39,9 +39,15 @@ const AuthRegister = () => {
     telefono: "",
     fecha_nacimiento: "",
   });
+  const [idType, setIdType] = useState('cedula'); // 'cedula' or 'pasaporte'
   const [careerProofFile, setCareerProofFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null); // For general submission errors
+  const [formErrors, setFormErrors] = useState({
+    cedula: '',
+    telefono: '',
+    fecha_nacimiento: '',
+  });
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -69,15 +75,98 @@ const AuthRegister = () => {
     }
   };
 
+  const handleTelefonoBlur = () => {
+    const telefonoLimpio = formData.telefono.trim();
+    if (!/^09\d{8}$/.test(telefonoLimpio)) {
+      setFormErrors(prev => ({ ...prev, telefono: 'El teléfono debe tener 10 dígitos y empezar con 09.' }));
+    } else {
+      setFormErrors(prev => ({ ...prev, telefono: '' }));
+    }
+  };
+
+  const handleIdentificacionBlur = async () => {
+    const identificacionLimpia = formData.cedula.trim();
+    if (identificacionLimpia.length === 0) {
+      setFormErrors(prev => ({ ...prev, cedula: 'Este campo es obligatorio.'}));
+      return;
+    }
+
+    if (idType === 'cedula') {
+      if (!/^\d{10}$/.test(identificacionLimpia)) {
+        setFormErrors(prev => ({ ...prev, cedula: 'La cédula debe tener 10 dígitos numéricos.' }));
+        return;
+      }
+      if (!validarCedulaEcuador(identificacionLimpia)) {
+        setFormErrors(prev => ({ ...prev, cedula: 'La Cédula ingresada no es válida.' }));
+        return;
+      }
+    } else { // Pasaporte
+      const passportRegex = /^[a-zA-Z0-9]{5,20}$/;
+      if (!passportRegex.test(identificacionLimpia)) {
+        setFormErrors(prev => ({ ...prev, cedula: 'El pasaporte debe ser alfanumérico y tener entre 5 y 20 caracteres.' }));
+        return;
+      }
+    }
+
+    // Si el formato es válido, verificar unicidad
+    try {
+      const { data, error } = await supabase.from('perfiles').select('cedula').eq('cedula', identificacionLimpia);
+      if (error) throw error;
+      if (data && data.length > 0) {
+        setFormErrors(prev => ({ ...prev, cedula: 'Esta identificación ya está registrada.' }));
+      } else {
+        setFormErrors(prev => ({ ...prev, cedula: '' }));
+      }
+    } catch (err) {
+      // No alertar al usuario, solo loguear el error de la validación en background
+      console.error("Error al validar identificación:", err);
+    }
+  };
+
+  const handleFechaNacimientoBlur = () => {
+    const fechaNacimientoStr = formData.fecha_nacimiento;
+    if (!fechaNacimientoStr) {
+      setFormErrors(prev => ({ ...prev, fecha_nacimiento: 'La fecha de nacimiento es obligatoria.' }));
+      return;
+    }
+
+    const fechaNacimiento = new Date(fechaNacimientoStr);
+    const hoy = new Date();
+    const edadMinima = new Date(hoy.getFullYear() - 10, hoy.getMonth(), hoy.getDate());
+    const edadMaxima = new Date(hoy.getFullYear() - 105, hoy.getMonth(), hoy.getDate());
+
+    if (fechaNacimiento.toString() === "Invalid Date" || fechaNacimiento > hoy) {
+        setFormErrors(prev => ({ ...prev, fecha_nacimiento: 'La fecha de nacimiento no es válida o es en el futuro.' }));
+        return;
+    }
+    if (fechaNacimiento > edadMinima) {
+      setFormErrors(prev => ({ ...prev, fecha_nacimiento: 'Debes ser mayor de 10 años para registrarte.' }));
+      return;
+    }
+    if (fechaNacimiento < edadMaxima) {
+      setFormErrors(prev => ({ ...prev, fecha_nacimiento: 'La edad máxima permitida es de 75 años.' }));
+      return;
+    }
+    setFormErrors(prev => ({ ...prev, fecha_nacimiento: '' }));
+  };
+  
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
     setSuccessMessage(null);
 
-    // --- Validaciones existentes ---
+    // Re-run validations to catch cases where user didn't blur
+    handleTelefonoBlur();
+    await handleIdentificacionBlur();
+    handleFechaNacimientoBlur();
+
+    // Check if any errors exist after final validation
+    if (formErrors.cedula || formErrors.telefono || formErrors.fecha_nacimiento) {
+      setError("Por favor, corrige los errores marcados en el formulario.");
+      return;
+    }
+
     const emailNormalizado = formData.email.trim().toLowerCase();
-    const identificacionLimpia = formData.cedula.trim();
-    const telefonoLimpio = formData.telefono.trim();
     const nombre1Limpio = formData.nombre1.trim();
     const apellido1Limpio = formData.apellido1.trim();
 
@@ -91,26 +180,7 @@ const AuthRegister = () => {
         setError("El primer apellido es obligatorio y solo puede contener letras.");
         return;
     }
-    if (identificacionLimpia.length === 0) {
-        setError("El campo Identificación es obligatorio.");
-        return;
-    }
-
-    const esNumerico = /^\d+$/.test(identificacionLimpia);
-    if (identificacionLimpia.length === 10 && esNumerico) {
-        if (!validarCedulaEcuador(identificacionLimpia)) {
-            setError("La Cédula de 10 dígitos ingresada no es válida.");
-            return;
-        }
-    } else if (identificacionLimpia.length < 5) {
-        setError("La identificación (Pasaporte/Cédula extranjera) debe tener al menos 5 caracteres.");
-        return;
-    }
-
-    if (telefonoLimpio.length !== 10) {
-      setError("El número de teléfono debe tener 10 dígitos.");
-      return;
-    }
+    
     if (formData.password.length < 6) {
       setError("La contraseña debe tener al menos 6 caracteres.");
       return;
@@ -119,27 +189,12 @@ const AuthRegister = () => {
       setError("Las contraseñas no coinciden.");
       return;
     }
-
-    const fechaNacimiento = new Date(formData.fecha_nacimiento);
-    const hoy = new Date();
-    const edadMinima = new Date(hoy.getFullYear() - 10, hoy.getMonth(), hoy.getDate());
-    const edadMaxima = new Date(hoy.getFullYear() - 75, hoy.getMonth(), hoy.getDate());
-
-    if (fechaNacimiento.toString() === "Invalid Date" || fechaNacimiento > hoy) {
-        setError("La fecha de nacimiento no es válida o es en el futuro.");
-        return;
-    }
-    if (fechaNacimiento > edadMinima) {
-      setError("Debes ser mayor de 10 años para registrarte.");
-      return;
-    }
-    if (fechaNacimiento < edadMaxima) {
-      setError("La edad máxima permitida es de 75 años.");
-      return;
-    }
     // --- Fin de validaciones ---
 
     setLoading(true);
+
+    const identificacionLimpia = formData.cedula.trim();
+    const telefonoLimpio = formData.telefono.trim();
     
     try {
       // 1. Verificar si la cédula ya existe
@@ -240,17 +295,61 @@ const AuthRegister = () => {
             <Label htmlFor="apellido2" value="Segundo Apellido (Opcional)" />
             <TextInput id="apellido2" name="apellido2" type="text" onChange={handleChange} value={formData.apellido2} maxLength={50} />
           </div>
-          <div>
-            <Label htmlFor="cedula" value="Identificación (Cédula / Pasaporte)" />
-            <TextInput id="cedula" name="cedula" type="text" maxLength={20} required onChange={handleChange} value={formData.cedula} />
+          <div className="md:col-span-2">
+            <Label htmlFor="idType" value="Tipo de Identificación" />
+            <div className="flex gap-2">
+              <Select id="idType" name="idType" value={idType} onChange={(e) => {
+                setIdType(e.target.value);
+                setFormErrors(prev => ({ ...prev, cedula: '' })); // Clear error on type change
+              }} className="w-1/3">
+                <option value="cedula">Cédula</option>
+                <option value="pasaporte">Pasaporte</option>
+              </Select>
+              <TextInput 
+                id="cedula" 
+                name="cedula" 
+                type="text" 
+                maxLength={20} 
+                required 
+                onChange={handleChange} 
+                onBlur={handleIdentificacionBlur}
+                value={formData.cedula} 
+                className="w-2/3"
+                color={formErrors.cedula ? 'failure' : 'gray'}
+                helperText={formErrors.cedula && <span className="text-red-600">{formErrors.cedula}</span>}
+              />
+            </div>
           </div>
           <div>
             <Label htmlFor="telefono" value="Teléfono (10 dígitos)" />
-            <TextInput id="telefono" name="telefono" type="tel" inputMode="numeric" pattern="\d*" maxLength={10} required onChange={handleChange} value={formData.telefono} />
+            <TextInput 
+              id="telefono" 
+              name="telefono" 
+              type="tel" 
+              inputMode="numeric" 
+              pattern="\d*" 
+              maxLength={10} 
+              required 
+              onChange={handleChange} 
+              onBlur={handleTelefonoBlur}
+              value={formData.telefono}
+              color={formErrors.telefono ? 'failure' : 'gray'}
+              helperText={formErrors.telefono && <span className="text-red-600">{formErrors.telefono}</span>}
+            />
           </div>
           <div className="md:col-span-2">
             <Label htmlFor="fecha_nacimiento" value="Fecha de Nacimiento" />
-            <TextInput id="fecha_nacimiento" name="fecha_nacimiento" type="date" required onChange={handleChange} value={formData.fecha_nacimiento} />
+            <TextInput 
+              id="fecha_nacimiento" 
+              name="fecha_nacimiento" 
+              type="date" 
+              required 
+              onChange={handleChange} 
+              onBlur={handleFechaNacimientoBlur}
+              value={formData.fecha_nacimiento}
+              color={formErrors.fecha_nacimiento ? 'failure' : 'gray'}
+              helperText={formErrors.fecha_nacimiento && <span className="text-red-600">{formErrors.fecha_nacimiento}</span>}
+            />
           </div>
         </div>
 
@@ -271,15 +370,22 @@ const AuthRegister = () => {
           </div>
         </div>
 
-        <div className="mb-6">
-          <Label htmlFor="career-proof" value="Comprobante de Carrera (Opcional)" />
-          <FileInput id="career-proof" accept="application/pdf" onChange={handleFileChange} />
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Sube un PDF que verifique tu carrera si deseas acceder a eventos restringidos.
-          </p>
-        </div>
+        {formData.email.toLowerCase().includes('@uta.edu.ec') && (
+          <div className="mb-6">
+            <Label htmlFor="career-proof" value="Comprobante de Carrera (Opcional)" />
+            <FileInput id="career-proof" accept="application/pdf" onChange={handleFileChange} />
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              Sube un PDF que verifique tu carrera si deseas acceder a eventos restringidos.
+            </p>
+          </div>
+        )}
 
-        <Button color="primary" type="submit" className="w-full" disabled={loading || !!successMessage}>
+        <Button 
+          color="primary" 
+          type="submit" 
+          className="w-full" 
+          disabled={loading || !!successMessage || !!formErrors.cedula || !!formErrors.telefono || !!formErrors.fecha_nacimiento}
+        >
           {loading ? "Registrando..." : "Registrarse"}
         </Button>
       </form>

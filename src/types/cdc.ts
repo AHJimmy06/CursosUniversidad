@@ -34,6 +34,7 @@ export interface SolicitudDeCambio {
     nombre1: string;
     apellido1: string;
   } | null;
+  estado_ecab?: string;
 }
 
 export interface RfcPir {
