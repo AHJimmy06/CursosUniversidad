@@ -23,6 +23,15 @@ const MobileSidebar = () => {
           if (item.name === 'Catálogo de Cursos') {
             return ['usuario', 'estudiante'].includes(activeRole);
           }
+          
+          if (activeRole === 'administrador') {
+            if (item.name === 'Docente' || item.name === 'Responsable' || item.name === 'Estudiante' || item.name === 'Usuario') {
+                return false;
+            }
+            const isPublic = !item.roles || item.roles.length === 0;
+            const isAdminItem = item.roles?.includes('administrador');
+            return isPublic || isAdminItem;
+          }
 
           if (item.name === 'Docente') return activeRole === 'docente';
           if (item.name === 'Responsable') return activeRole === 'responsable';
