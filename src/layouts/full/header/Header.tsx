@@ -1,16 +1,18 @@
 
 import { useState, useEffect } from "react";
-import {  Navbar } from "flowbite-react";
+import { Navbar } from "flowbite-react";
 import { Icon } from "@iconify/react";
 import Profile from "./Profile";
 import ErrorReport from "./ErrorReport";
+import RoleSwitcher from "./RoleSwitcher";
 import { Drawer } from "flowbite-react";
 import MobileSidebar from "../sidebar/MobileSidebar";
-
-
+import { useUser } from "src/contexts/UserContext";
 
 const Header = () => {
   const [isSticky, setIsSticky] = useState(false);
+  const { activeRole } = useUser();
+  const isAdmin = activeRole === 'administrador';
 
   useEffect(() => {
     const handleScroll = () => {
@@ -47,13 +49,16 @@ const Header = () => {
 
           <div className="flex gap-3 items-center justify-between w-full ">
             <div className="flex gap-2 items-center">
-              <span
-                onClick={() => setIsOpen(true)}
-                className="h-10 w-10 flex text-black dark:text-white text-opacity-65 xl:hidden hover:text-primary hover:bg-lightprimary rounded-full justify-center items-center cursor-pointer"
-              >
-                <Icon icon="solar:hamburger-menu-line-duotone" height={21} />
-              </span>
+              {isAdmin && (
+                <span
+                  onClick={() => setIsOpen(true)}
+                  className="h-10 w-10 flex text-black dark:text-white text-opacity-65 xl:hidden hover:text-primary hover:bg-lightprimary rounded-full justify-center items-center cursor-pointer"
+                >
+                  <Icon icon="solar:hamburger-menu-line-duotone" height={21} />
+                </span>
+              )}
               <ErrorReport />
+              <RoleSwitcher />
             </div>
 
             <div className="flex gap-4 items-center">
@@ -64,11 +69,13 @@ const Header = () => {
       </header>
 
       {/* Mobile Sidebar */}
-      <Drawer open={isOpen} onClose={handleClose} className="w-130">
-        <Drawer.Items>
-          <MobileSidebar />
-        </Drawer.Items>
-      </Drawer>
+      {isAdmin && (
+        <Drawer open={isOpen} onClose={handleClose} className="w-130">
+          <Drawer.Items>
+            <MobileSidebar />
+          </Drawer.Items>
+        </Drawer>
+      )}
     </>
   );
 };

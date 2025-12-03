@@ -17,6 +17,8 @@ interface UserContextType {
   isLoggingIn: boolean;
   isDocente: boolean;
   isResponsable: boolean;
+  activeRole: string;
+  setActiveRole: (role: string) => void;
   setIsLoggingIn: (isLoggingIn: boolean) => void;
   refreshProfile: () => Promise<void>;
 }
@@ -34,6 +36,15 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isDocente, setIsDocente] = useState(false);
   const [isResponsable, setIsResponsable] = useState(false);
+  const [activeRole, setActiveRole] = useState<string>('Usuario');
+
+  useEffect(() => {
+    if (profile?.rol === 'administrador') {
+      setActiveRole('administrador');
+    } else {
+      setActiveRole('Usuario');
+    }
+  }, [profile]);
 
   const fetchFullProfile = useCallback(async (currentUser: User) => {
     try {
@@ -145,9 +156,11 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     isLoggingIn,
     isDocente,
     isResponsable,
+    activeRole,
+    setActiveRole,
     setIsLoggingIn,
     refreshProfile,
-  }), [user, profile, loading, isLoggingIn, isDocente, isResponsable, refreshProfile]);
+  }), [user, profile, loading, isLoggingIn, isDocente, isResponsable, activeRole, refreshProfile]);
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 };
