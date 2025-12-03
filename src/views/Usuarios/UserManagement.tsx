@@ -142,51 +142,53 @@ const UserManagement = () => {
       setEditingUser(null); // Limpiar usuario seleccionado
   };
 
-  const handleDelete = (userId: string) => {
-    showModal({
+  const handleDelete = async (userId: string) => {
+    const confirmed = await showModal({
       title: '¿Estás seguro de que deseas eliminar este usuario?',
       body: 'Esta acción marcará al usuario como inactivo y no se podrá deshacer fácilmente.',
-      onConfirm: async () => {
-        try {
-          const { error } = await supabase
-            .from('perfiles')
-            .update({ deleted_at: new Date().toISOString(), is_active: false })
-            .eq('id', userId);
-
-          if (error) throw error;
-
-          setAlert({ type: 'success', message: 'Usuario eliminado exitosamente' });
-          fetchUsers();
-        } catch (error) {
-          console.error('Error deleting user:', error);
-          setAlert({ type: 'failure', message: 'Error al eliminar usuario' });
-        }
-      },
     });
+
+    if (confirmed) {
+      try {
+        const { error } = await supabase
+          .from('perfiles')
+          .update({ deleted_at: new Date().toISOString(), is_active: false })
+          .eq('id', userId);
+
+        if (error) throw error;
+
+        setAlert({ type: 'success', message: 'Usuario eliminado exitosamente' });
+        fetchUsers();
+      } catch (error) {
+        console.error('Error deleting user:', error);
+        setAlert({ type: 'failure', message: 'Error al eliminar usuario' });
+      }
+    }
   };
 
-  const handleReactivate = (userId: string) => {
-    showModal({
+  const handleReactivate = async (userId: string) => {
+    const confirmed = await showModal({
       title: '¿Estás seguro de que deseas reactivar este usuario?',
       body: 'El usuario recuperará el acceso al sistema.',
       confirmText: 'Sí, reactivar',
-      onConfirm: async () => {
-        try {
-          const { error } = await supabase
-            .from('perfiles')
-            .update({ deleted_at: null, is_active: true })
-            .eq('id', userId);
-
-          if (error) throw error;
-
-          setAlert({ type: 'success', message: 'Usuario reactivado exitosamente' });
-          fetchUsers();
-        } catch (error) {
-          console.error('Error reactivating user:', error);
-          setAlert({ type: 'failure', message: 'Error al reactivar usuario' });
-        }
-      },
     });
+
+    if (confirmed) {
+      try {
+        const { error } = await supabase
+          .from('perfiles')
+          .update({ deleted_at: null, is_active: true })
+          .eq('id', userId);
+
+        if (error) throw error;
+
+        setAlert({ type: 'success', message: 'Usuario reactivado exitosamente' });
+        fetchUsers();
+      } catch (error) {
+        console.error('Error reactivating user:', error);
+        setAlert({ type: 'failure', message: 'Error al reactivar usuario' });
+      }
+    }
   };
 
   const handleEditSubmit = async (e: React.FormEvent) => {

@@ -113,27 +113,26 @@ const MiPerfil = () => {
         setUpdating(false);
     };
 
-    const handleDeactivate = () => {
-        showModal({
+    const handleDeactivate = async () => {
+        const confirmed = await showModal({
             title: '¿Estás seguro de que deseas desactivar tu cuenta?',
             body: 'Esta acción marcará tu cuenta como inactiva y cerrará tu sesión. No podrás volver a iniciar sesión.',
             confirmText: 'Sí, desactivar',
-            onConfirm: async () => {
-                if (user) {
-                    const { error: deactivateError } = await supabase
-                        .from('perfiles')
-                        .update({ is_active: false })
-                        .eq('id', user.id);
-
-                    if (deactivateError) {
-                        setError('No se pudo desactivar la cuenta. Inténtalo más tarde.');
-                    } else {
-                        await supabase.auth.signOut();
-                        navigate('/auth/login');
-                    }
-                }
-            }
         });
+
+        if (confirmed && user) {
+            const { error: deactivateError } = await supabase
+                .from('perfiles')
+                .update({ is_active: false })
+                .eq('id', user.id);
+
+            if (deactivateError) {
+                setError('No se pudo desactivar la cuenta. Inténtalo más tarde.');
+            } else {
+                await supabase.auth.signOut();
+                navigate('/auth/login');
+            }
+        }
     };
 
     const renderVerificationStatus = () => {

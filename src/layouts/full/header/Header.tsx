@@ -4,6 +4,7 @@ import {  Navbar } from "flowbite-react";
 import { Icon } from "@iconify/react";
 import Profile from "./Profile";
 import ErrorReport from "./ErrorReport";
+import RoleSwitcher from "./RoleSwitcher";
 import { Drawer } from "flowbite-react";
 import MobileSidebar from "../sidebar/MobileSidebar";
 
@@ -54,6 +55,7 @@ const Header = () => {
                 <Icon icon="solar:hamburger-menu-line-duotone" height={21} />
               </span>
               <ErrorReport />
+              <RoleSwitcher />
             </div>
 
             <div className="flex gap-4 items-center">

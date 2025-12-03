@@ -1,0 +1,3 @@
+[ ] Agregar un Combobox (desplegable) en el encabezado (Header) que permita visualizar y cambiar el rol actual entre  "Usuario" ,"Responsable" , "Docente" y "Estudiante". Por defecto es usuario.
+[ ] Agregar un Combobox (desplegable) en el encabezado (Header) que permita visualizar y cambiar el rol actual entre "Gestor de Cambios",  "Miembro CAB" y "Líder Técnico".
+De igual forma solo podrán ser visualizadas en caso de que por lo menos en una cumplan ese rol. Por defecto al registrarse y aun sin inscribirse en un curso es un usuario general.

@@ -8,59 +8,56 @@ import { useUser } from "../../../contexts/UserContext";
 import { useThemeConfig } from "../../../contexts/ThemeContext";
 
 const SidebarLayout = () => {
-  const { profile, isDocente, isResponsable } = useUser();
+  const { profile, activeRole } = useUser();
   const { config: theme } = useThemeConfig();
   
-  // Extraemos los roles una sola vez para las dependencias
-  const allUserRoles = profile?.cdc_roles;
+  const allUserRoles = useMemo(() => {
+    const roles = new Set<string>(profile?.cdc_roles || []);
+    if (profile?.rol) roles.add(profile.rol);
+    return Array.from(roles);
+  }, [profile]);
 
-  // --- OPTIMIZACIÓN AQUÍ ---
-  // La lógica de filtrado ahora vive DENTRO del useMemo.
-  // Solo se recalcula si cambian los roles o el perfil del usuario.
   const filteredSidebarContent = useMemo(() => {
     
-    // Función recursiva local
     const filterRecursive = (items: (MenuItem | ChildItem)[] | undefined): (MenuItem | ChildItem)[] => {
       if (!items) return [];
 
       return items
         .filter((item) => {
-          // 1. Filtros directos por banderas booleanas
-          if (item.name === 'Docente') return isDocente;
-          if (item.name === 'Responsable') return isResponsable;
+          if (item.name === 'Catálogo de Cursos') {
+            return ['usuario', 'estudiante'].includes(activeRole);
+          }
 
-          // 2. Filtros por roles (RBAC)
-          const isPublic = !item.roles || item.roles.length === 0;
-          if (isPublic) return true;
-
-          const hasAccess = allUserRoles && item.roles?.some(requiredRole => allUserRoles.includes(requiredRole));
-          return hasAccess ?? false;
+          if (item.name === 'Docente') return activeRole === 'docente';
+          if (item.name === 'Responsable') return activeRole === 'responsable';
+          if (item.name === 'Estudiante') return activeRole === 'estudiante';
+          
+          if (activeRole === 'usuario') {
+              const isPublic = !item.roles || item.roles.length === 0;
+              return isPublic;
+          }
+          
+          return item.roles?.includes(activeRole) ?? false;
         })
         .map((item) => {
-          // 3. Procesar hijos recursivamente
           if (item.children) {
             const filteredChildren = filterRecursive(item.children);
 
-            // Si tiene hijos válidos, devolvemos el padre con los hijos nuevos
             if (filteredChildren.length > 0) {
               return { ...item, children: filteredChildren };
             }
 
-            // Si todos los hijos fueron filtrados (eliminados):
-            // Solo mostramos el padre si el padre mismo es un enlace clicable (url)
-            // Si es solo un contenedor (collapse) vacío, lo ocultamos devolviendo null.
             return item.url ? { ...item, children: [] } : null;
           }
           
-          // Si no tiene hijos, es un item final, lo devolvemos tal cual
           return item;
         })
-        .filter(Boolean) as (MenuItem | ChildItem)[]; // Eliminar los nulls generados
+        .filter(Boolean) as (MenuItem | ChildItem)[];
     };
 
     return filterRecursive(SidebarContent);
 
-  }, [allUserRoles, isDocente, isResponsable]); // Dependencias estables
+  }, [activeRole]); // Dependencias estables
 
   return (
     <div className="xl:block hidden">
