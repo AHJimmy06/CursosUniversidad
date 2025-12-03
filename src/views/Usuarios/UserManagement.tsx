@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from 'src/utils/supabaseClient';
 import { UserProfile } from 'src/types/user';
-import { Alert } from 'flowbite-react';
+import { Alert, Card, Label, TextInput, Select } from 'flowbite-react';
 import ListUser from './Componentes/ListUser';
 import EditUser from './Componentes/EditUser';
 import { useModal } from 'src/contexts/ModalContext';
@@ -280,38 +280,47 @@ const UserManagement = () => {
   });
 
   return (
-    <div className="p-6">
+    <>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold dark:text-white">Lista de Usuarios</h1>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
-        <input
-          type="text"
-          placeholder="Buscar por nombre o cédula"
-          className="border p-2 rounded flex-grow dark:bg-gray-700 dark:text-white dark:border-gray-600"
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-        />
-        <select
-          className="border p-2 rounded dark:bg-gray-700 dark:text-white dark:border-gray-600"
-          value={roleFilter}
-          onChange={e => setRoleFilter(e.target.value)}
-        >
-          <option value="">Todos los roles</option>
-          <option value="administrador">Administrador</option>
-          <option value="general">Usuario General</option>
-        </select>
-        <select
-          className="border p-2 rounded dark:bg-gray-700 dark:text-white dark:border-gray-600"
-          value={statusFilter}
-          onChange={e => setStatusFilter(e.target.value)}
-        >
-          <option value="">Todos (Estado)</option>
-          <option value="active">Activo</option>
-          <option value="inactive">Inactivo</option>
-        </select>
+      
+
+
+      <Card className="mb-6">
+      <h5 className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
+        Filtros de Búsqueda
+      </h5>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <Label htmlFor="search" value="Buscar" />
+          <TextInput
+            id="search"
+            type="text"
+            placeholder="Buscar por nombre o cédula"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <div>
+          <Label htmlFor="role" value="Filtrar por Rol" />
+          <Select id="role" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
+            <option value="">Todos los roles</option>
+            <option value="administrador">Administrador</option>
+            <option value="general">Usuario General</option>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="status" value="Filtrar por Estado" />
+          <Select id="status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="">Todos (Estado)</option>
+            <option value="active">Activo</option>
+            <option value="inactive">Inactivo</option>
+          </Select>
+        </div>
       </div>
+    </Card>
 
       {alert && (
         <Alert color={alert.type === 'success' ? 'green' : 'red'} className="mb-4" onDismiss={() => setAlert(null)}>
@@ -341,7 +350,7 @@ const UserManagement = () => {
         selectedCdcRoles={editedUserCdcRoles}
         onCdcRoleChange={handleCdcRoleChange}
       />
-    </div>
+    </>
   );
 };
 

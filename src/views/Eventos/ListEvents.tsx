@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../utils/supabaseClient';
-import { Table, Dropdown, Modal, Alert } from 'flowbite-react';
+import { Table, Dropdown, Modal, Alert, Card, Label, TextInput, Select } from 'flowbite-react';
 import EditEventForm from './componentesEventos/EditEventForm';
 import { Evento } from '../../types/eventos';
 
@@ -127,37 +127,47 @@ const ListEvents: React.FC = () => {
   if (error) return <Alert color="failure">Error al cargar datos: {error}</Alert>;
 
   return (
-    <div className="p-4">
+    <>
       <h2 className="text-2xl font-bold mb-4">Listado de Eventos</h2>
-      <div className="flex justify-between items-center mb-6">
-        <input
-          type="text"
-          placeholder="Buscar por nombre"
-          className="border p-2 rounded"
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-        />
-        <select
-          className="border p-2 rounded"
-          value={typeFilter}
-          onChange={e => setTypeFilter(e.target.value)}
-        >
-          <option value="">Todos los tipos</option>
-          <option value="curso">Curso</option>
-          <option value="conferencia">Conferencia</option>
-          <option value="congreso">Congreso</option>
-          <option value="webinar">Webinar</option>
-          <option value="socializacion">Socialización</option>
-          <option value="otro">Otro</option>
-        </select>
-        <input
-          type="text"
-          placeholder="Buscar por responsable"
-          className="border p-2 rounded"
-          value={responsibleFilter}
-          onChange={e => setResponsibleFilter(e.target.value)}
-        />
-      </div>
+      <Card className="mb-6">
+        <h5 className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
+          Filtros de Búsqueda
+        </h5>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <Label htmlFor="search" value="Buscar por Nombre" />
+            <TextInput
+              id="search"
+              type="text"
+              placeholder="Buscar por nombre"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div>
+            <Label htmlFor="type" value="Filtrar por Tipo" />
+            <Select id="type" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+              <option value="">Todos los tipos</option>
+              <option value="curso">Curso</option>
+              <option value="conferencia">Conferencia</option>
+              <option value="congreso">Congreso</option>
+              <option value="webinar">Webinar</option>
+              <option value="socializacion">Socialización</option>
+              <option value="otro">Otro</option>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="responsible" value="Buscar por Responsable" />
+            <TextInput
+              id="responsible"
+              type="text"
+              placeholder="Buscar por responsable"
+              value={responsibleFilter}
+              onChange={(e) => setResponsibleFilter(e.target.value)}
+            />
+          </div>
+        </div>
+      </Card>
       <Modal show={isEditModalOpen} onClose={() => setIsEditModalOpen(false)}>
         <Modal.Header>Editar Evento</Modal.Header>
         <Modal.Body>
@@ -176,11 +186,11 @@ const ListEvents: React.FC = () => {
       ) : (
         <Table>
           <Table.Head>
-            <Table.HeadCell>Nombre del Curso</Table.HeadCell>
+            <Table.HeadCell>Nombre del Evento</Table.HeadCell>
             <Table.HeadCell>Responsable</Table.HeadCell>
-            <Table.HeadCell>Cédula</Table.HeadCell>
+            <Table.HeadCell>Cédula/Pasaporte</Table.HeadCell>
             <Table.HeadCell>Estado</Table.HeadCell>
-            <Table.HeadCell><span className="sr-only">Acciones</span></Table.HeadCell>
+            <Table.HeadCell>Acciones<span className="sr-only">Acciones</span></Table.HeadCell>
           </Table.Head>
           <Table.Body className="divide-y">
             {filteredEvents.map((event) => (
@@ -221,7 +231,7 @@ const ListEvents: React.FC = () => {
           </Table.Body>
         </Table>
       )}
-    </div>
+    </>
   );
 };
 
