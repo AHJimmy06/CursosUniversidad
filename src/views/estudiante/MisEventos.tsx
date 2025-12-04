@@ -1,14 +1,12 @@
 import { useEffect, useState } from 'react';
 import { supabase } from 'src/utils/supabaseClient';
-import { Evento } from 'src/types/eventos';
+import { Evento, Inscripcion } from 'src/types/eventos';
 import EventoCard from 'src/views/catalogo/components/EventoCard';
 import { Spinner, Alert, Button } from 'flowbite-react';
 import { Link } from 'react-router-dom';
 import { HiExclamation } from 'react-icons/hi';
 
-type InscripcionConPago = {
-  evento_id: number;
-  estado: string;
+type InscripcionConPago = Omit<Inscripcion, 'perfiles' | 'created_at'> & {
   pagos: {
     estado: string;
     motivo_rechazo: string | null;
@@ -31,8 +29,7 @@ const MisEventos = () => {
           .from('inscripciones')
           .select(
             `
-            evento_id,
-            estado,
+            *,
             pagos ( estado, motivo_rechazo ),
             Eventos:evento_id ( *, carreras(id, nombre) )
           `
@@ -78,6 +75,8 @@ const MisEventos = () => {
               inscripcion.pagos &&
               inscripcion.pagos.length > 0 &&
               inscripcion.pagos[0].estado === 'rechazado';
+            
+            const showDownloadButton = evento.estado === 'finalizado' && !!inscripcion.certificado_url;
 
             return (
               <div key={evento.id} className="relative">
@@ -92,7 +91,12 @@ const MisEventos = () => {
                     </Button>
                   </Alert>
                 )}
-                <EventoCard evento={evento} />
+                <EventoCard 
+                  evento={evento} 
+                  showDownloadCertificateButton={showDownloadButton}
+                  certificateUrl={inscripcion.certificado_url}
+                  certificateType={inscripcion.tipo_certificado}
+                />
               </div>
             );
           })}

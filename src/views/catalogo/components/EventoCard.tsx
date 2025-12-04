@@ -10,9 +10,21 @@ interface EventoCardProps {
   showValidarMatriculasButton?: boolean;
   showApproveDocumentsButton?: boolean;
   showEditButton?: boolean;
+  showDownloadCertificateButton?: boolean;
+  certificateUrl?: string;
+  certificateType?: 'aprobacion' | 'participacion';
 }
 
-const EventoCard: React.FC<EventoCardProps> = ({ evento, showCalificarButton, showValidarMatriculasButton, showApproveDocumentsButton, showEditButton }) => {
+const EventoCard: React.FC<EventoCardProps> = ({ 
+  evento, 
+  showCalificarButton, 
+  showValidarMatriculasButton, 
+  showApproveDocumentsButton, 
+  showEditButton,
+  showDownloadCertificateButton,
+  certificateUrl,
+  certificateType
+}) => {
   return (
     <Card className="h-full flex flex-col hover:shadow-lg transition-shadow duration-300">
       <div className="aspect-video w-full overflow-hidden rounded-lg">
@@ -78,6 +90,13 @@ const EventoCard: React.FC<EventoCardProps> = ({ evento, showCalificarButton, sh
                 Editar Evento
               </Button>
             </Link>
+          )}
+          {showDownloadCertificateButton && certificateUrl && (
+            <a href={certificateUrl} target="_blank" rel="noopener noreferrer">
+              <Button color="success" className="w-full">
+                Descargar Certificado {certificateType === 'aprobacion' ? 'de Aprobación' : 'de Participación'}
+              </Button>
+            </a>
           )}
         </div>
         <div className="text-center mt-4">
