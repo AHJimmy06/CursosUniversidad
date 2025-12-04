@@ -10,6 +10,7 @@ export interface ChildItem {
   color?: string;
   isPro?: boolean;
   roles?: string[];
+  description?: string; // Added for tooltips
 }
 
 export interface MenuItem {
@@ -23,6 +24,7 @@ export interface MenuItem {
   url?: any;
   isPro?: boolean;
   roles?: string[];
+  description?: string; // Added for tooltips
 }
 
 const SidebarContent: MenuItem[] = [
@@ -36,6 +38,7 @@ const SidebarContent: MenuItem[] = [
         url: "/",
         isPro: false,
         roles: ['administrador'],
+        description: "Accede al panel principal de administración y resumen del sistema.",
       },
       {
         name: "Catálogo de Cursos",
@@ -43,6 +46,7 @@ const SidebarContent: MenuItem[] = [
         id: uniqueId(),
         url: "/catalogo",
         isPro: false,
+        description: "Explora la oferta completa de cursos y eventos disponibles.",
       },
     ],
   },
@@ -57,6 +61,7 @@ const SidebarContent: MenuItem[] = [
         url: "/eventos",
         isPro: false,
         roles: ['administrador'],
+        description: "Administra y organiza los eventos académicos.",
         children: [
           {
             name: "Crear Evento",
@@ -64,6 +69,7 @@ const SidebarContent: MenuItem[] = [
             id: uniqueId(),
             url: "/eventos/crear",
             isPro: false,
+            description: "Crea un nuevo evento académico para el catálogo.",
           },
           {
             name: "Listar Eventos",
@@ -72,6 +78,7 @@ const SidebarContent: MenuItem[] = [
             url: "/eventos/listar",
             isPro: false,
             roles: ['administrador'],
+            description: "Visualiza y gestiona todos los eventos existentes.",
           }
         ]
       },
@@ -82,6 +89,7 @@ const SidebarContent: MenuItem[] = [
         url: "/usuarios",
         isPro: false,
         roles: ['administrador'],
+        description: "Gestiona las cuentas y roles de los usuarios del sistema.",
         children: [
           {
             name: "Lista de Usuarios",
@@ -90,6 +98,7 @@ const SidebarContent: MenuItem[] = [
             url: "/usuarios/listar",
             isPro: false,
             roles: ['administrador'],
+            description: "Consulta y administra la lista de todos los usuarios registrados.",
           },
           {
             name: "Crear Usuario",
@@ -98,6 +107,7 @@ const SidebarContent: MenuItem[] = [
             url: "/usuarios/crear",
             isPro: false,
             roles: ['administrador'],
+            description: "Registra una nueva cuenta de usuario en el sistema.",
           }
         ]
       },
@@ -106,6 +116,7 @@ const SidebarContent: MenuItem[] = [
   {
     heading: "Comité de Cambios (CDC)",
     roles: ['administrador', 'Gestor de Cambios', 'Miembro CAB', 'Líder Técnico'],
+    description: "Accede a las funcionalidades del Comité de Cambios para la gestión de solicitudes.",
     children: [
       {
         name: "Solicitudes",
@@ -114,6 +125,7 @@ const SidebarContent: MenuItem[] = [
         url: "/cdc/solicitudes",
         isPro: false,
         roles: ['administrador', 'Gestor de Cambios', 'Miembro CAB', 'Líder Técnico'],
+        description: "Revisa y gestiona las solicitudes de cambio pendientes.",
       },
     ],
   },
@@ -126,6 +138,7 @@ const SidebarContent: MenuItem[] = [
         id: uniqueId(),
         url: "/docente/eventos",
         isPro: false,
+        description: "Accede a los eventos asignados como docente y gestiona estudiantes.",
       },
       {
         name: "Responsable",
@@ -133,6 +146,7 @@ const SidebarContent: MenuItem[] = [
         id: uniqueId(),
         url: "/responsable/eventos",
         isPro: false,
+        description: "Gestiona eventos y aprueba inscripciones como responsable.",
       },
       {
         name: "Aprobar Inscripciones",
@@ -141,6 +155,7 @@ const SidebarContent: MenuItem[] = [
         url: "/responsable/aprobar-inscripciones",
         isPro: false,
         roles: ['responsable'],
+        description: "Revisa y aprueba las solicitudes de inscripción a eventos.",
       },
       {
         name: "Aprobar Documentos",
@@ -149,6 +164,7 @@ const SidebarContent: MenuItem[] = [
         url: "/responsable/aprobar-documentos",
         isPro: false,
         roles: ['responsable'],
+        description: "Revisa y aprueba los documentos adjuntos en las inscripciones.",
       },
       {
         name: "Estudiante",
@@ -156,6 +172,7 @@ const SidebarContent: MenuItem[] = [
         id: uniqueId(),
         url: "/estudiante/mis-eventos",
         isPro: false,
+        description: "Visualiza tus eventos inscritos y tu progreso.",
       },
     ],
   },
@@ -170,6 +187,7 @@ const SidebarContent: MenuItem[] = [
         url: "/admin/validar-carreras",
         isPro: false,
         roles: ['administrador'],
+        description: "Gestiona y valida la aprobación de carreras para estudiantes.",
       },
     ],
   },
@@ -184,6 +202,7 @@ const SidebarContent: MenuItem[] = [
         url: "/configuracion",
         isPro: false,
         roles: ['administrador'],
+        description: "Ajusta la configuración general de la aplicación, incluyendo la apariencia.",
       },
       {
         name: "Auditoría",
@@ -192,6 +211,7 @@ const SidebarContent: MenuItem[] = [
         url: "/admin/auditoria",
         isPro: false,
         roles: ['administrador'],
+        description: "Revisa el registro de actividades y cambios en el sistema.",
       },
     ],
   },
