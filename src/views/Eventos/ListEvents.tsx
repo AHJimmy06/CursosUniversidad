@@ -3,6 +3,7 @@ import { supabase } from '../../utils/supabaseClient';
 import { Table, Dropdown, Modal, Alert, Card, Label, TextInput, Select } from 'flowbite-react';
 import EditEventForm from './componentesEventos/EditEventForm';
 import { Evento } from '../../types/eventos';
+import { useUser } from 'src/contexts/UserContext';
 
 const ListEvents: React.FC = () => {
   const [events, setEvents] = useState<Evento[]>([]);
@@ -14,13 +15,18 @@ const ListEvents: React.FC = () => {
   const [typeFilter, setTypeFilter] = useState('');
   const [responsibleFilter, setResponsibleFilter] = useState('');
 
+  const { activeRole } = useUser();
+  const isAdmin = activeRole === 'administrador';
+  const isResponsible = activeRole === 'responsable';
+
   const fetchEventsAndResponsables = async () => {
     setLoading(true);
     setError(null);
     try {
       const { data: eventsData, error: eventsError } = await supabase
         .from('Eventos')
-        .select('*, carreras(id, nombre)');
+        .select('*, carreras(id, nombre)')
+        .order('created_at', { ascending: false });
 
       if (eventsError) throw eventsError;
       if (!eventsData || eventsData.length === 0) {
@@ -205,9 +211,11 @@ const ListEvents: React.FC = () => {
                 </Table.Cell>
                 <Table.Cell>
                   <Dropdown inline label="Acciones">
-                    <Dropdown.Item onClick={() => handleEdit(event)}>
-                      Editar
-                    </Dropdown.Item>
+                    {(isAdmin || (isResponsible && event.estado === 'borrador')) && (
+                      <Dropdown.Item onClick={() => handleEdit(event)}>
+                        Editar
+                      </Dropdown.Item>
+                    )}
 
                     {event.estado !== 'publicado' && (
                       <Dropdown.Item onClick={() => handleChangeState(event.id, 'publicado')}>

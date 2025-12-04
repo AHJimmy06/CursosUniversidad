@@ -31,6 +31,8 @@ const DocenteEventos = Loadable(lazy(() => import('../views/docente/DocenteEvent
 const ResponsableEventos = Loadable(lazy(() => import('../views/responsable/ResponsableEventos')));
 const ListarSolicitudesCambio = Loadable(lazy(() => import('../views/cdc/ListarSolicitudesCambio')));
 const DetalleSolicitudCambio = Loadable(lazy(() => import('../views/cdc/DetalleSolicitudCambio')));
+const ApproveInscriptions = Loadable(lazy(() => import('../views/responsable/ApproveInscriptions')));
+const ApproveDocuments = Loadable(lazy(() => import('../views/responsable/ApproveDocuments')));
 
 const MisEventos = Loadable(lazy(() => import('../views/estudiante/MisEventos')));
 
@@ -78,6 +80,8 @@ const Router = [
               { path: '/estudiante/mis-eventos', exact: true, element: <MisEventos /> },
               { path: '/cdc/solicitudes', exact: true, element: <ListarSolicitudesCambio /> },
               { path: '/cdc/solicitud/:id', exact: true, element: <DetalleSolicitudCambio /> },
+              { path: '/responsable/aprobar-inscripciones', exact: true, element: <ApproveInscriptions /> },
+              { path: '/responsable/aprobar-documentos/:eventoId', exact: true, element: <ApproveDocuments /> },
             ],
           },
         ],

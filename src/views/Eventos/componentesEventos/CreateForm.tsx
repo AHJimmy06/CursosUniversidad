@@ -1,14 +1,17 @@
 import { useState } from "react";
 import { Label, TextInput, Button, Alert } from "flowbite-react";
-import { supabase } from "../../../utils/supabaseClient"; // Importar el cliente de Supabase
-import { useUser } from "../../../contexts/UserContext"; // Importa el contexto de usuario
+import { supabase } from "../../../utils/supabaseClient";
+import { useUser } from "../../../contexts/UserContext";
 import SearchResponsable from "./SearchResponsable";
 
 const CreateForm = () => {
-  const { user } = useUser(); // Obtiene el usuario autenticado
-  const [formData, setFormData] = useState({ nombreEvento: "", idResponsableEvento: "" });
+  const { user } = useUser();
+  const [formData, setFormData] = useState({ 
+    nombreEvento: "", 
+    idResponsableEvento: "",
+  });
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null); // Nuevo estado para el mensaje de éxito
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
@@ -21,60 +24,54 @@ const CreateForm = () => {
   const handleResponsableSelect = (id: string) => {
     setFormData(prevFormData => ({
       ...prevFormData,
-      idResponsableEvento: id // Ahora recibimos y guardamos el id
+      idResponsableEvento: id
     }));
   };
 
-const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-  event.preventDefault();
-  setError(null);
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
 
-  if (!user) {
-    setError("Debes iniciar sesión para crear un evento.");
-    return;
-  }
-
-  const nombreEventoLimpio = formData.nombreEvento.trim();
-  // Mantenemos la lógica de limpieza
-  const idResponsableEventoLimpio = formData.idResponsableEvento.trim();
-
-  if (nombreEventoLimpio.length === 0) {
-    setError("El nombre del evento es obligatorio.");
-    return;
-  }
-  
-  try {
-    const { data, error: supabaseError } = await supabase
-      .from('Eventos')
-      .insert([
-        {
-          nombre: nombreEventoLimpio,
-          // --- ✨ LA CORRECCIÓN CLAVE ESTÁ AQUÍ ✨ ---
-          // Si idResponsableEventoLimpio es un string con contenido, úsalo.
-          // Si es un string vacío, conviértelo a 'null'.
-          responsable_id: idResponsableEventoLimpio || null,
-        },
-      ])
-      .select(); // Es buena práctica añadir .select() para obtener el registro creado
-
-    if (supabaseError) {
-      throw supabaseError;
+    if (!user) {
+      setError("Debes iniciar sesión para crear un evento.");
+      return;
     }
 
-    setSuccessMessage("Evento creado exitosamente!");
-    setFormData({
-      nombreEvento: "",
-      idResponsableEvento: "",
-    });
-    setTimeout(() => setSuccessMessage(null), 5000);
+    const nombreEventoLimpio = formData.nombreEvento.trim();
+    const idResponsableEventoLimpio = formData.idResponsableEvento.trim();
 
-  } catch (err: any) {
-    console.error("Error al crear el evento:", err.message);
-    setError(err.message || "Ocurrió un error al crear el evento.");
-  }
-};
+    if (nombreEventoLimpio.length === 0) {
+      setError("El nombre del evento es obligatorio.");
+      return;
+    }
+    
+    try {
+      const { data, error: supabaseError } = await supabase
+        .from('Eventos')
+        .insert([
+          {
+            nombre: nombreEventoLimpio,
+            responsable_id: idResponsableEventoLimpio || null,
+          },
+        ])
+        .select();
 
-// ... el resto de tu componente CreateForm
+      if (supabaseError) {
+        throw supabaseError;
+      }
+
+      setSuccessMessage("Evento creado exitosamente!");
+      setFormData({
+        nombreEvento: "",
+        idResponsableEvento: "",
+      });
+      setTimeout(() => setSuccessMessage(null), 5000);
+
+    } catch (err: any) {
+      console.error("Error al crear el evento:", err.message);
+      setError(err.message || "Ocurrió un error al crear el evento.");
+    }
+  };
 
   return (
     <div className="rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray p-6 relative w-full break-words">
@@ -82,7 +79,7 @@ const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
       <div className="mt-6">
         <form onSubmit={handleSubmit}>
           {error && <Alert color="failure" className="mb-4">{error}</Alert>}
-          {successMessage && <Alert color="success" className="mb-4">{successMessage}</Alert>} {/* Muestra el mensaje de éxito */}
+          {successMessage && <Alert color="success" className="mb-4">{successMessage}</Alert>}
           <div className="grid grid-cols-12 gap-30">
             <div className="lg:col-span-6 col-span-12">
               <div className="flex flex-col gap-4">

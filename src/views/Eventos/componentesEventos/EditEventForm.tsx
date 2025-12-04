@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { TextInput, Button, Label, Alert, Textarea, ToggleSwitch, Select, FileInput, Checkbox, Spinner } from 'flowbite-react';
 import { supabase } from 'src/utils/supabaseClient';
 import { Evento, PerfilSimple, Carrera } from 'src/types/eventos';
+import { useUser } from 'src/contexts/UserContext';
 
 interface EditEventFormProps {
   event: Evento;
@@ -10,6 +11,11 @@ interface EditEventFormProps {
 }
 
 const EditEventForm: React.FC<EditEventFormProps> = ({ event, onClose, onUpdate }) => {
+  const { activeRole } = useUser();
+  const isResponsible = activeRole === 'responsable';
+  const isEventSaved = !!event.id;
+  const isDisabled = isResponsible && isEventSaved;
+
   const [formData, setFormData] = useState<Partial<Evento>>(event);
   const [docentes, setDocentes] = useState<PerfilSimple[]>([]);
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -143,26 +149,26 @@ const EditEventForm: React.FC<EditEventFormProps> = ({ event, onClose, onUpdate 
       
       <div className="md:col-span-2">
         <Label htmlFor="nombre" value="Nombre del Evento/Curso" />
-        <TextInput id="nombre" name="nombre" value={formData.nombre || ''} onChange={handleChange} required />
+        <TextInput id="nombre" name="nombre" value={formData.nombre || ''} onChange={handleChange} required disabled={isDisabled} />
       </div>
 
       <div className="md:col-span-2">
         <Label htmlFor="descripcion" value="Descripción Detallada" />
-        <Textarea id="descripcion" name="descripcion" value={formData.descripcion || ''} onChange={handleChange} rows={4} />
+        <Textarea id="descripcion" name="descripcion" value={formData.descripcion || ''} onChange={handleChange} rows={4} disabled={isDisabled} />
       </div>
 
        <div className="md:col-span-2">
             <Label htmlFor="file-upload" value="Cambiar Imagen del Evento" />
             <div className="flex items-center gap-4 mt-1">
                 {imagePreview && <img src={imagePreview} alt="Vista previa" className="h-16 w-16 object-cover rounded" />}
-                <FileInput id="file-upload" accept="image/*" onChange={handleFileChange} className="flex-grow" />
+                <FileInput id="file-upload" accept="image/*" onChange={handleFileChange} className="flex-grow" disabled={isDisabled} />
             </div>
             {uploadMessage && <Alert color={uploadMessage.type} className="mt-2">{uploadMessage.text}</Alert>}
         </div>
 
       <div>
         <Label htmlFor="tipo" value="Tipo de Evento" />
-        <Select id="tipo" name="tipo" value={formData.tipo || 'otro'} onChange={handleChange} required>
+        <Select id="tipo" name="tipo" value={formData.tipo || 'otro'} onChange={handleChange} required disabled={isDisabled}>
           <option value="curso">Curso</option>
           <option value="conferencia">Conferencia</option>
           <option value="congreso">Congreso</option>
@@ -173,18 +179,92 @@ const EditEventForm: React.FC<EditEventFormProps> = ({ event, onClose, onUpdate 
       </div>
       <div>
         <Label htmlFor="estado" value="Estado del Evento" />
-        <Select id="estado" name="estado" value={formData.estado || 'borrador'} onChange={handleChange} required>
+        <Select id="estado" name="estado" value={formData.estado || 'borrador'} onChange={handleChange} required disabled={isDisabled}>
             <option value="borrador">Borrador (No visible)</option>
             <option value="publicado">Publicado (Visible)</option>
         </Select>
       </div>
 
+      <div className="flex flex-col gap-4 p-4 border rounded-lg md:col-span-2">
+        <h3 className="text-lg font-medium text-gray-900 mb-2">Reglas de Aprobación</h3>
+        <ToggleSwitch 
+          name="requiere_asistencia" 
+          label="Requiere Asistencia" 
+          checked={formData.requiere_asistencia || false} 
+          onChange={(checked) => setFormData(prev => ({...prev, requiere_asistencia: checked, asistencia_minima: checked ? (prev.asistencia_minima || 0) : null}))} 
+          disabled={isDisabled}
+        />
+        {formData.requiere_asistencia && (
+          <div>
+            <Label htmlFor="asistencia_minima" value="Asistencia Mínima (%)" />
+            <TextInput 
+              id="asistencia_minima" 
+              name="asistencia_minima" 
+              type="number" 
+              min="0" 
+              max="100" 
+              value={formData.asistencia_minima || 0} 
+              onChange={handleChange} 
+              disabled={isDisabled}
+            />
+          </div>
+        )}
+        <ToggleSwitch 
+          name="requiere_nota" 
+          label="Requiere Nota" 
+          checked={formData.requiere_nota || false} 
+          onChange={(checked) => setFormData(prev => ({...prev, requiere_nota: checked, nota_aprobacion: checked ? (prev.nota_aprobacion || 0) : null}))} 
+          disabled={isDisabled}
+        />
+        {formData.requiere_nota && (
+          <div>
+            <Label htmlFor="nota_aprobacion" value="Nota Mínima" />
+            <TextInput 
+              id="nota_aprobacion" 
+              name="nota_aprobacion" 
+              type="number" 
+              min="0" 
+              max="10" 
+              step="0.01" 
+              value={formData.nota_aprobacion || 0} 
+              onChange={handleChange} 
+              disabled={isDisabled}
+            />
+          </div>
+        )}
+      </div>
+
       <div className="md:col-span-2">
         <Label htmlFor="audiencia" value="Audiencia del Evento" />
-        <Select id="audiencia" name="audiencia" value={formData.audiencia || 'publico_general'} onChange={handleChange} required>
+        <Select id="audiencia" name="audiencia" value={formData.audiencia || 'publico_general'} onChange={handleChange} required disabled={isDisabled}>
           <option value="publico_general">Público General</option>
           <option value="estudiantes_carrera">Estudiantes por Carrera</option>
         </Select>
+      </div>
+
+      <div className="flex flex-col gap-4 p-4 border rounded-lg md:col-span-2">
+        <h3 className="text-lg font-medium text-gray-900 mb-2">Requisitos de Inscripción</h3>
+        <ToggleSwitch 
+          name="requiere_titulo_tercer_nivel" 
+          label="Requiere Título de Tercer Nivel" 
+          checked={formData.requiere_titulo_tercer_nivel || false} 
+          onChange={(checked) => setFormData(prev => ({...prev, requiere_titulo_tercer_nivel: checked}))} 
+          disabled={isDisabled}
+        />
+        <ToggleSwitch 
+          name="requiere_carta_motivacion" 
+          label="Requiere Carta de Motivación" 
+          checked={formData.requiere_carta_motivacion || false} 
+          onChange={(checked) => setFormData(prev => ({...prev, requiere_carta_motivacion: checked}))} 
+          disabled={isDisabled}
+        />
+        <ToggleSwitch 
+          name="requiere_certificacion_previo" 
+          label="Requiere Certificación de Curso Previo" 
+          checked={formData.requiere_certificacion_previo || false} 
+          onChange={(checked) => setFormData(prev => ({...prev, requiere_certificacion_previo: checked}))} 
+          disabled={isDisabled}
+        />
       </div>
 
       {formData.audiencia === 'estudiantes_carrera' && (
@@ -198,6 +278,7 @@ const EditEventForm: React.FC<EditEventFormProps> = ({ event, onClose, onUpdate 
                       id={`career-${career.id}`}
                       checked={selectedCareers.includes(career.id)}
                       onChange={() => handleCareerChange(career.id)}
+                      disabled={isDisabled}
                     />
                     {career.nombre}
                   </Label>
@@ -209,42 +290,42 @@ const EditEventForm: React.FC<EditEventFormProps> = ({ event, onClose, onUpdate 
 
       <div>
         <Label htmlFor="fecha_inicio_evento" value="Inicio del Evento" />
-        <TextInput id="fecha_inicio_evento" name="fecha_inicio_evento" type="datetime-local" value={formatDateForInput(formData.fecha_inicio_evento)} onChange={handleChange} />
+        <TextInput id="fecha_inicio_evento" name="fecha_inicio_evento" type="datetime-local" value={formatDateForInput(formData.fecha_inicio_evento)} onChange={handleChange} disabled={isDisabled} />
       </div>
       <div>
         <Label htmlFor="fecha_fin_evento" value="Fin del Evento" />
-        <TextInput id="fecha_fin_evento" name="fecha_fin_evento" type="datetime-local" value={formatDateForInput(formData.fecha_fin_evento)} onChange={handleChange} />
+        <TextInput id="fecha_fin_evento" name="fecha_fin_evento" type="datetime-local" value={formatDateForInput(formData.fecha_fin_evento)} onChange={handleChange} disabled={isDisabled} />
       </div>
       <div>
         <Label htmlFor="fecha_inicio_inscripcion" value="Inicio de Inscripciones" />
-        <TextInput id="fecha_inicio_inscripcion" name="fecha_inicio_inscripcion" type="datetime-local" value={formatDateForInput(formData.fecha_inicio_inscripcion)} onChange={handleChange} />
+        <TextInput id="fecha_inicio_inscripcion" name="fecha_inicio_inscripcion" type="datetime-local" value={formatDateForInput(formData.fecha_inicio_inscripcion)} onChange={handleChange} disabled={isDisabled} />
       </div>
       <div>
         <Label htmlFor="fecha_fin_inscripcion" value="Cierre de Inscripciones" />
-        <TextInput id="fecha_fin_inscripcion" name="fecha_fin_inscripcion" type="datetime-local" value={formatDateForInput(formData.fecha_fin_inscripcion)} onChange={handleChange} />
+        <TextInput id="fecha_fin_inscripcion" name="fecha_fin_inscripcion" type="datetime-local" value={formatDateForInput(formData.fecha_fin_inscripcion)} onChange={handleChange} disabled={isDisabled} />
       </div>
 
       <div className="flex flex-col gap-4 p-4 border rounded-lg">
-        <ToggleSwitch name="es_pagado" label="Es de Pago" checked={formData.es_pagado || false} onChange={(checked) => setFormData(prev => ({...prev, es_pagado: checked, costo: checked ? prev.costo : 0}))} />
+        <ToggleSwitch name="es_pagado" label="Es de Pago" checked={formData.es_pagado || false} onChange={(checked) => setFormData(prev => ({...prev, es_pagado: checked, costo: checked ? prev.costo : 0}))} disabled={isDisabled} />
         {formData.es_pagado && (
             <div>
                 <Label htmlFor="costo" value="Costo ($)" />
-                <TextInput id="costo" name="costo" type="number" min="0" step="0.01" value={formData.costo || 0} onChange={handleChange} />
+                <TextInput id="costo" name="costo" type="number" min="0" step="0.01" value={formData.costo || 0} onChange={handleChange} disabled={isDisabled} />
             </div>
         )}
       </div>
 
       <div className="flex flex-col gap-4 p-4 border rounded-lg">
-        <ToggleSwitch name="genera_certificado" label="Genera Certificado" checked={formData.genera_certificado || false} onChange={(checked) => setFormData(prev => ({...prev, genera_certificado: checked}))} />
+        <ToggleSwitch name="genera_certificado" label="Genera Certificado" checked={formData.genera_certificado || false} onChange={(checked) => setFormData(prev => ({...prev, genera_certificado: checked}))} disabled={isDisabled} />
         <div>
             <Label htmlFor="numero_horas" value="Número de Horas" />
-            <TextInput id="numero_horas" name="numero_horas" type="number" min="0" value={formData.numero_horas || 0} onChange={handleChange} />
+            <TextInput id="numero_horas" name="numero_horas" type="number" min="0" value={formData.numero_horas || 0} onChange={handleChange} disabled={isDisabled} />
         </div>
       </div>
 
       <div className="md:col-span-2">
         <Label htmlFor="docente_id" value="Docente Asignado" />
-        <Select id="docente_id" name="docente_id" value={formData.docente_id || ''} onChange={handleChange}>
+        <Select id="docente_id" name="docente_id" value={formData.docente_id || ''} onChange={handleChange} disabled={isDisabled}>
             <option value="">-- Sin docente --</option>
             {docentes.map(d => (
                 <option key={d.id} value={d.id}>{`${d.nombre1} ${d.apellido1} (${d.cedula})`}</option>
@@ -254,7 +335,7 @@ const EditEventForm: React.FC<EditEventFormProps> = ({ event, onClose, onUpdate 
 
       <div className="md:col-span-2 flex justify-end gap-2 mt-4">
         <Button color="gray" onClick={onClose} disabled={loading}>Cancelar</Button>
-        <Button type="submit" isProcessing={loading}>Guardar Cambios</Button>
+        <Button type="submit" isProcessing={loading} disabled={loading || isDisabled}>Guardar Cambios</Button>
       </div>
     </form>
   );

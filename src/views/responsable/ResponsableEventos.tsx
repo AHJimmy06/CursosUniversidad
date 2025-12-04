@@ -9,7 +9,7 @@ const ResponsableEventos: React.FC = () => {
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const { user } = useUser();
+  const { user, activeRole } = useUser(); // Get activeRole from useUser()
 
   useEffect(() => {
     const fetchEventos = async () => {
@@ -53,9 +53,9 @@ const ResponsableEventos: React.FC = () => {
     <div>
       <h1 className="text-3xl font-bold mb-4">Mis Eventos como Responsable</h1>
       {eventos.length > 0 ? (
-<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {eventos.map(evento => (
-            <EventoCard evento={evento} key={evento.id} showCalificarButton={false} showValidarMatriculasButton={true} showEditButton={true} />
+            <EventoCard evento={evento} key={evento.id} showCalificarButton={false} showValidarMatriculasButton={true} showApproveDocumentsButton={true} showEditButton={evento.estado !== 'publicado'} />
           ))}
         </div>
       ) : (

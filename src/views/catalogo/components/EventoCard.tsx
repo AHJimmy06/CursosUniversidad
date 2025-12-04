@@ -8,10 +8,11 @@ interface EventoCardProps {
   evento: Evento;
   showCalificarButton?: boolean;
   showValidarMatriculasButton?: boolean;
+  showApproveDocumentsButton?: boolean;
   showEditButton?: boolean;
 }
 
-const EventoCard: React.FC<EventoCardProps> = ({ evento, showCalificarButton, showValidarMatriculasButton, showEditButton }) => {
+const EventoCard: React.FC<EventoCardProps> = ({ evento, showCalificarButton, showValidarMatriculasButton, showApproveDocumentsButton, showEditButton }) => {
   return (
     <Card className="h-full flex flex-col hover:shadow-lg transition-shadow duration-300">
       <div className="aspect-video w-full overflow-hidden rounded-lg">
@@ -29,13 +30,14 @@ const EventoCard: React.FC<EventoCardProps> = ({ evento, showCalificarButton, sh
       </div>
       
       <div className="p-4 flex-grow flex flex-col">
-        <div className="flex justify-between items-start mb-2">
+        <div className="flex flex-wrap justify-between items-start mb-2 gap-2">
           <Badge color="lightinfo" size="sm" className="capitalize">
             {evento.tipo?.replace('_', ' ') || 'Evento'}
           </Badge>
           <Badge color={evento.es_pagado ? 'warning' : 'success'}>
             {evento.es_pagado ? `$${evento.costo}` : 'Gratis'}
           </Badge>
+          
         </div>
         <h5 className="text-xl font-bold tracking-tight text-gray-900 dark:text-white flex-grow">
           {evento.nombre}
@@ -63,6 +65,13 @@ const EventoCard: React.FC<EventoCardProps> = ({ evento, showCalificarButton, sh
               </Button>
             </Link>
           )}
+          {showApproveDocumentsButton && (
+            <Link to={`/responsable/aprobar-documentos/${evento.id}`}>
+              <Button color="info" className="w-full">
+                Aprobar Documentos
+              </Button>
+            </Link>
+          )}
           {showEditButton && (
             <Link to={`/eventos/editar/${evento.id}`}>
               <Button color="warning" className="w-full">
@@ -71,7 +80,14 @@ const EventoCard: React.FC<EventoCardProps> = ({ evento, showCalificarButton, sh
             </Link>
           )}
         </div>
+        <div className="text-center mt-4">
+        <Badge color="info" size="sm" className="inline-block capitalize">
+            {evento.estado.replace(/_/g, ' ') || 'Estado Desconocido'}
+      </Badge>
       </div>
+      </div>
+      
+      
     </Card>
   );
 };

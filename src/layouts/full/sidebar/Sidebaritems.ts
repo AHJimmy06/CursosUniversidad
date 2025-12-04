@@ -135,6 +135,22 @@ const SidebarContent: MenuItem[] = [
         isPro: false,
       },
       {
+        name: "Aprobar Inscripciones",
+        icon: "solar:check-circle-line-duotone",
+        id: uniqueId(),
+        url: "/responsable/aprobar-inscripciones",
+        isPro: false,
+        roles: ['responsable'],
+      },
+      {
+        name: "Aprobar Documentos",
+        icon: "solar:document-text-line-duotone",
+        id: uniqueId(),
+        url: "/responsable/aprobar-documentos",
+        isPro: false,
+        roles: ['responsable'],
+      },
+      {
         name: "Estudiante",
         icon: "solar:user-line-duotone",
         id: uniqueId(),
