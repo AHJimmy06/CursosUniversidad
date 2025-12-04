@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../utils/supabaseClient';
-import { Table, Dropdown, Modal, Alert, Card, Label, TextInput, Select, Spinner } from 'flowbite-react';
+import { Table, Dropdown, Modal, Alert, Card, Label, TextInput, Select, Spinner, ToggleSwitch } from 'flowbite-react';
 import EditEventForm from './componentesEventos/EditEventForm';
 import { Evento, Inscripcion, PerfilSimple } from '../../types/eventos';
 import { useUser } from 'src/contexts/UserContext';
@@ -27,7 +27,7 @@ const ListEvents: React.FC = () => {
     try {
       const { data: eventsData, error: eventsError } = await supabase
         .from('Eventos')
-        .select('*, carreras(id, nombre)')
+        .select('*, carreras(id, nombre), is_featured')
         .order('created_at', { ascending: false });
 
       if (eventsError) throw eventsError;
@@ -130,6 +130,7 @@ const ListEvents: React.FC = () => {
     }
   };
 
+
   const handleChangeState = async (eventId: number, newState: 'publicado' | 'inactivo' | 'borrador' | 'finalizado') => {
     if (window.confirm(`¿Estás seguro de que quieres cambiar el estado a "${newState}"?`)) {
       try {
@@ -155,6 +156,31 @@ const ListEvents: React.FC = () => {
       }
     }
   }
+
+  const handleToggleFeatured = async (eventId: number, currentStatus: boolean) => {
+    if (!isAdmin) {
+      alert("Solo los administradores pueden cambiar el estado 'Destacado'.");
+      return;
+    }
+    const newStatus = !currentStatus;
+    try {
+      const { error } = await supabase
+        .from('Eventos')
+        .update({ is_featured: newStatus })
+        .eq('id', eventId);
+
+      if (error) throw error;
+
+      setEvents(
+        events.map(e =>
+          e.id === eventId ? { ...e, is_featured: newStatus } : e
+        )
+      );
+    } catch (err: any) {
+      console.error('Error al actualizar estado destacado:', err);
+      alert('Error al actualizar estado destacado: ' + err.message);
+    }
+  };
 
   const getStatusStyle = (estado: string) => {
     switch (estado.toLowerCase()) {
@@ -263,6 +289,7 @@ const ListEvents: React.FC = () => {
             <Table.HeadCell>Responsable</Table.HeadCell>
             <Table.HeadCell>Cédula/Pasaporte</Table.HeadCell>
             <Table.HeadCell>Estado</Table.HeadCell>
+            {isAdmin && <Table.HeadCell>Destacado</Table.HeadCell>}
             <Table.HeadCell>Acciones<span className="sr-only">Acciones</span></Table.HeadCell>
           </Table.Head>
           <Table.Body className="divide-y">
@@ -276,6 +303,14 @@ const ListEvents: React.FC = () => {
                     {event.estado}
                   </span>
                 </Table.Cell>
+                {isAdmin && (
+                  <Table.Cell>
+                    <ToggleSwitch
+                      checked={event.is_featured || false}
+                      onChange={() => handleToggleFeatured(event.id, event.is_featured || false)}
+                    />
+                  </Table.Cell>
+                )}
                 <Table.Cell>
                   <Dropdown inline label="Acciones">
                     {(isAdmin || (isResponsible && event.estado === 'borrador')) && (

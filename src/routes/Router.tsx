@@ -17,6 +17,7 @@ const EventoDetalle = Loadable(lazy(() => import('../views/eventoDetalle/EventoD
 const InscripcionWizard = Loadable(lazy(() => import('../views/Matricula/InscripcionWizard')));
 const ValidacionMatriculas = Loadable(lazy(() => import('../views/Matricula/ValidacionMatriculas')));
 const ValidarCarreras = Loadable(lazy(() => import('../views/admin/ValidarCarreras')));
+const Auditoria = Loadable(lazy(() => import('../views/admin/Auditoria')));
 const ErrorReport = Loadable(lazy(() => import('../views/ErrorReport/ErrorReport')));
 
 const Dashboard = Loadable(lazy(() => import('../views/dashboards/Dashboard')));
@@ -35,6 +36,7 @@ const ApproveInscriptions = Loadable(lazy(() => import('../views/responsable/App
 const ApproveDocuments = Loadable(lazy(() => import('../views/responsable/ApproveDocuments')));
 
 const MisEventos = Loadable(lazy(() => import('../views/estudiante/MisEventos')));
+const LandingPage = Loadable(lazy(() => import('../views/landing/LandingPage')));
 
 const AuthRoutes = () => {
   const { user, profile, loading, isLoggingIn } = useUser();
@@ -71,6 +73,7 @@ const Router = [
               { path: '/usuarios/listar', exact: true, element: <UserManagement/> },
               { path: '/usuarios/crear', exact: true, element: <CreateUserPage/> },
               { path: '/admin/validar-carreras', exact: true, element: <ValidarCarreras /> },
+              { path: '/admin/auditoria', exact: true, element: <Auditoria /> },
               { path: 'perfil', element: <MiPerfil /> },
               { path: '/configuracion', exact: true, element: <ConfiguracionPage /> },
               { path: '/docente/eventos', exact: true, element: <DocenteEventos /> },
@@ -100,6 +103,13 @@ const Router = [
             ],
           },
         ],
+      },
+      {
+        path: '/landing',
+        element: <BlankLayout />,
+        children: [
+          { path: '', element: <LandingPage /> }
+        ]
       },
       {
         path: '*',

@@ -185,6 +185,14 @@ const SidebarContent: MenuItem[] = [
         isPro: false,
         roles: ['administrador'],
       },
+      {
+        name: "Auditoría",
+        icon: "solar:shield-check-line-duotone",
+        id: uniqueId(),
+        url: "/admin/auditoria",
+        isPro: false,
+        roles: ['administrador'],
+      },
     ],
   },
 ];
