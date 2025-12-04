@@ -75,6 +75,7 @@ const MisEventos = () => {
 
             const pagoRechazado =
               inscripcion.estado === 'pendiente_pago' &&
+              inscripcion.pagos &&
               inscripcion.pagos.length > 0 &&
               inscripcion.pagos[0].estado === 'rechazado';
 

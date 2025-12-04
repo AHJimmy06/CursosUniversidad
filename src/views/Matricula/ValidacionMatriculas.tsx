@@ -1,35 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Badge, Button, Card, Spinner, Table, Tooltip } from 'flowbite-react';
+import { Alert, Badge, Button, Card, Spinner, Table, Tooltip, Modal } from 'flowbite-react';
 import { HiCheck, HiDownload, HiInformationCircle, HiX, HiPrinter } from 'react-icons/hi';
 import { useUser } from 'src/contexts/UserContext';
 import { supabase } from 'src/utils/supabaseClient';
-import { Evento } from 'src/types/eventos';
+import { Evento, Inscripcion, PerfilSimple } from 'src/types/eventos';
 import { useParams } from 'react-router-dom';
 import RejectionModal from './RejectionModal';
-import { useModal } from '../../contexts/ModalContext';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-
-const BUCKET_PAGOS = (import.meta.env.VITE_STORAGE_BUCKET_PAGOS as string) || 'comprobantes-pago';
-
-
-// Tipos locales
-interface InscripcionRow {
-  id: number;
-  usuario_id: string;
-  evento_id: number;
-  estado: string;
-  fecha_inscripcion?: string;
-}
-
-interface PerfilLite {
-  id: string;
-  nombre1: string;
-  apellido1: string;
-  email: string;
-  cedula?: string;
-  telefono?: string;
-}
 
 interface PagoLite {
   id: number;
@@ -38,20 +14,28 @@ interface PagoLite {
   estado: 'pendiente' | 'en_revision' | 'aprobado' | 'rechazado';
 }
 
+interface InscripcionConDetalles extends Inscripcion {
+  perfiles: PerfilSimple;
+  pagos: PagoLite[];
+}
+
 const ValidacionMatriculas: React.FC = () => {
   const { user, loading: loadingUser } = useUser();
   const { cursoId } = useParams<{ cursoId: string }>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [inscripciones, setInscripciones] = useState<InscripcionRow[]>([]);
+  const [inscripciones, setInscripciones] = useState<InscripcionConDetalles[]>([]);
   const [evento, setEvento] = useState<Evento | null>(null);
-  const [perfiles, setPerfiles] = useState<Record<string, PerfilLite>>({});
-  const [pagos, setPagos] = useState<Record<number, PagoLite>>({});
   const [processing, setProcessing] = useState<Record<number, boolean>>({});
 
   const [showRejectionModal, setShowRejectionModal] = useState(false);
-  const [rejectionTarget, setRejectionTarget] = useState<InscripcionRow | null>(null);
+  const [rejectionTarget, setRejectionTarget] = useState<InscripcionConDetalles | null>(null);
+
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [selectedInscripcion, setSelectedInscripcion] = useState<InscripcionConDetalles | null>(null);
+  const [isFsImgOpen, setIsFsImgOpen] = useState(false);
+  const [fsImgUrl, setFsImgUrl] = useState<string | null>(null);
 
   const canLoad = useMemo(() => !!user && !loadingUser && !!cursoId, [user, loadingUser, cursoId]);
 
@@ -65,26 +49,35 @@ const ValidacionMatriculas: React.FC = () => {
       if (ev.responsable_id !== user!.id) throw new Error('No tienes permisos para validar matrículas en este evento.');
       setEvento(ev as Evento);
 
-      const { data: insc, error: e1 } = await supabase.from('inscripciones').select('id, usuario_id, evento_id, estado, fecha_inscripcion').eq('evento_id', cursoId).eq('estado', 'pendiente_pago');
+      const { data: insc, error: e1 } = await supabase.from('inscripciones').select('*, perfiles(*)').eq('evento_id', cursoId).eq('estado', 'pendiente_revision');
       if (e1) throw e1;
-      const inscRows = (insc || []) as InscripcionRow[];
-      setInscripciones(inscRows);
+      
+      const inscripcionesData = (insc || []) as (Inscripcion & { perfiles: PerfilSimple })[];
 
-      if (inscRows.length === 0) {
-        setPerfiles({});
-        setPagos({});
+      if (inscripcionesData.length === 0) {
+        setInscripciones([]);
+        setLoading(false);
         return;
       }
 
-      const perfilIds = Array.from(new Set(inscRows.map((i) => i.usuario_id)));
-      const { data: perf, error: e3 } = await supabase.from('perfiles').select('id, nombre1, apellido1, email, cedula, telefono').in('id', perfilIds);
-      if (e3) throw e3;
-      setPerfiles(Object.fromEntries((perf || []).map((p: any) => [p.id, p as PerfilLite])));
-
-      const inscIds = inscRows.map((i) => i.id);
-      const { data: pagosRows, error: e4 } = await supabase.from('pagos').select('id, inscripcion_id, comprobante_url, estado').in('inscripcion_id', inscIds);
+      const inscIds = inscripcionesData.map((i) => i.id);
+      const { data: pagosRows, error: e4 } = await supabase.from('pagos').select('*').in('inscripcion_id', inscIds);
       if (e4) throw e4;
-      setPagos(Object.fromEntries((pagosRows || []).map((p: any) => [p.inscripcion_id, p as PagoLite])));
+      
+      const pagosMap = new Map<number, PagoLite[]>();
+      (pagosRows || []).forEach((p: any) => {
+          if (!pagosMap.has(p.inscripcion_id)) {
+              pagosMap.set(p.inscripcion_id, []);
+          }
+          pagosMap.get(p.inscripcion_id)!.push(p as PagoLite);
+      });
+
+      const fullInscripciones = inscripcionesData.map(i => ({
+          ...i,
+          pagos: pagosMap.get(i.id) || []
+      }));
+
+      setInscripciones(fullInscripciones);
 
     } catch (err: any) {
       setError(err.message || 'No se pudo cargar la lista de validaciones');
@@ -93,52 +86,39 @@ const ValidacionMatriculas: React.FC = () => {
     }
   };
 
+
   useEffect(() => {
     fetchData();
   }, [canLoad, user, cursoId]);
 
-  const resolveFileUrl = async (bucket: string, path?: string | null) => {
-    if (!path) return null;
-    if (/^https?:\/\//i.test(path)) return path;
-    const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 60 * 5);
-    if (!error && data?.signedUrl) return data.signedUrl;
-    const pub = supabase.storage.from(bucket).getPublicUrl(path);
-    return pub?.data?.publicUrl || null;
+  const openReviewModal = (inscripcion: InscripcionConDetalles) => {
+    setSelectedInscripcion(inscripcion);
+    setIsReviewModalOpen(true);
+  };
+  
+  const handleOpenFsImg = (url: string) => {
+    setFsImgUrl(url);
+    setIsFsImgOpen(true);
   };
 
-
-// ... (dentro del componente ValidacionMatriculas)
-  const { showModal } = useModal();
-
-  const openComprobante = async (inscripcion_id: number) => {
-    const pago = pagos[inscripcion_id];
-    const url = await resolveFileUrl(BUCKET_PAGOS, pago?.comprobante_url || null);
-    if (url) {
-      window.open(url, '_blank', 'noopener,noreferrer');
-    } else {
-      showModal({
-        title: 'Error',
-        body: 'No se encontró un comprobante para esta inscripción.',
-        showCancel: false,
-        confirmText: 'Cerrar',
-      });
-    }
+  const handleCloseFsImg = () => {
+    setIsFsImgOpen(false);
+    setFsImgUrl(null);
   };
 
-  const handleOpenRejectionModal = (row: InscripcionRow) => {
+  const handleOpenRejectionModal = (row: InscripcionConDetalles) => {
     setRejectionTarget(row);
     setShowRejectionModal(true);
+    setIsReviewModalOpen(false); 
   };
 
-  const aprobar = async (row: InscripcionRow) => {
+  const aprobar = async (row: InscripcionConDetalles) => {
     setProcessing((p) => ({ ...p, [row.id]: true }));
     setError(null);
     try {
-      const { error } = await supabase.rpc('approve_payment', {
-        p_inscripcion_id: row.id,
-        p_revisor_id: user!.id,
-      });
+      const { error } = await supabase.rpc('approve_payment', { p_inscripcion_id: row.id, p_revisor_id: user!.id });
       if (error) throw error;
+      setIsReviewModalOpen(false);
       setInscripciones((list) => list.filter((i) => i.id !== row.id));
     } catch (e: any) {
       setError(e.message || 'No se pudo aprobar la inscripción');
@@ -152,11 +132,7 @@ const ValidacionMatriculas: React.FC = () => {
     setProcessing((p) => ({ ...p, [rejectionTarget.id]: true }));
     setError(null);
     try {
-      const { error } = await supabase.rpc('reject_payment', {
-        p_inscripcion_id: rejectionTarget.id,
-        p_revisor_id: user!.id,
-        p_motivo_rechazo: reason,
-      });
+      const { error } = await supabase.rpc('reject_payment', { p_inscripcion_id: rejectionTarget.id, p_revisor_id: user!.id, p_motivo_rechazo: reason });
       if (error) throw error;
       setShowRejectionModal(false);
       setInscripciones((list) => list.filter((i) => i.id !== rejectionTarget.id));
@@ -168,71 +144,7 @@ const ValidacionMatriculas: React.FC = () => {
     }
   };
 
-  const handleGenerarReporte = async () => {
-    if (!evento) return;
-
-    showModal({ title: 'Generando Reporte', body: 'Por favor, espera mientras se recopilan los datos...', showCancel: false });
-
-    try {
-      // 1. Fetch all inscriptions for the event
-      const { data: allInscripciones, error: inscError } = await supabase
-        .from('inscripciones')
-        .select('usuario_id, estado, fecha_inscripcion')
-        .eq('evento_id', evento.id);
-
-      if (inscError) throw inscError;
-      if (!allInscripciones || allInscripciones.length === 0) {
-        showModal({ title: 'Información', body: 'No hay inscripciones en este evento para generar un reporte.', showCancel: false, confirmText: 'Entendido' });
-        return;
-      }
-
-      // 2. Fetch all related profiles
-      const userIds = Array.from(new Set(allInscripciones.map(i => i.usuario_id)));
-      const { data: allPerfiles, error: perfError } = await supabase
-        .from('perfiles')
-        .select('id, nombre1, apellido1, email')
-        .in('id', userIds);
-      
-      if (perfError) throw perfError;
-      const perfilesMap = new Map(allPerfiles.map(p => [p.id, p]));
-
-      // 3. Generate PDF
-      const doc = new jsPDF();
-      doc.setFontSize(18);
-      doc.text(`Reporte de Matrículas: ${evento.nombre}`, 14, 22);
-      doc.setFontSize(11);
-      doc.setTextColor(100);
-      doc.text(`Fecha de generación: ${new Date().toLocaleDateString()}`, 14, 30);
-
-      const head = [['Estudiante', 'Email', 'Estado de Matrícula', 'Fecha de Inscripción']];
-      const body = allInscripciones.map(insc => {
-        const perfil = perfilesMap.get(insc.usuario_id);
-        return [
-          perfil ? `${perfil.nombre1} ${perfil.apellido1}` : 'N/A',
-          perfil ? perfil.email : 'N/A',
-          insc.estado.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()), // Capitalize status
-          insc.fecha_inscripcion ? new Date(insc.fecha_inscripcion).toLocaleDateString() : 'N/A'
-        ];
-      });
-
-      autoTable(doc, {
-        startY: 40,
-        head: head,
-        body: body,
-        theme: 'striped',
-        headStyles: { fillColor: [41, 128, 185] }, // Color azul
-      });
-
-      doc.save(`reporte_matriculas_${evento.nombre.replace(/ /g, '_')}.pdf`);
-      
-      // Cierra el modal mostrando un mensaje de éxito
-      showModal({ title: 'Éxito', body: 'El reporte ha sido generado.', showCancel: false, confirmText: 'OK' });
-
-    } catch (err: any) {
-      console.error("Error generando el reporte:", err);
-      showModal({ title: 'Error', body: `No se pudo generar el reporte: ${err.message}`, showCancel: false, confirmText: 'Cerrar' });
-    }
-  };
+  const isImageUrl = (url: string) => /\.(jpg|jpeg|png|gif)$/i.test(url);
 
   if (loading || loadingUser) {
     return <div className="flex justify-center items-center h-[60vh]"><Spinner size="xl" /></div>;
@@ -243,15 +155,8 @@ const ValidacionMatriculas: React.FC = () => {
       <div className="container mx-auto p-4">
         <Card>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <h1 className="text-2xl font-semibold">Validación de Pagos para {evento?.nombre}</h1>
-              <Tooltip content="Imprimir Reporte de Matrículas">
-                <Button color="gray" size="sm" onClick={handleGenerarReporte}>
-                  <HiPrinter className="h-5 w-5" />
-                </Button>
-              </Tooltip>
-            </div>
-            <Badge color="warning">Pendientes de Pago</Badge>
+            <h1 className="text-2xl font-semibold">Validación de Pagos para {evento?.nombre}</h1>
+            <Badge color="warning">Pendientes de Revisión</Badge>
           </div>
           {error && <Alert color="failure" className="mt-3" icon={HiInformationCircle}>{error}</Alert>}
           <div className="overflow-x-auto mt-4">
@@ -260,48 +165,63 @@ const ValidacionMatriculas: React.FC = () => {
                 <Table.HeadCell>ID</Table.HeadCell>
                 <Table.HeadCell>Estudiante</Table.HeadCell>
                 <Table.HeadCell>Email</Table.HeadCell>
-                <Table.HeadCell>Cédula</Table.HeadCell>
-                <Table.HeadCell>Teléfono</Table.HeadCell>
-                <Table.HeadCell>Comprobante</Table.HeadCell>
-                <Table.HeadCell>Acciones</Table.HeadCell>
+                <Table.HeadCell>Validar Pago</Table.HeadCell>
               </Table.Head>
               <Table.Body className="divide-y">
-                {inscripciones.map((row) => {
-                  const pf = perfiles[row.usuario_id];
-                  const pg = pagos[row.id];
-                  return (
-                    <Table.Row key={row.id} className="bg-white dark:border-gray-700 dark:bg-gray-800">
-                      <Table.Cell className="font-medium">{row.id}</Table.Cell>
-                      <Table.Cell>{pf ? `${pf.nombre1} ${pf.apellido1}` : row.usuario_id}</Table.Cell>
-                      <Table.Cell>{pf?.email || '-'}</Table.Cell>
-                      <Table.Cell>{pf?.cedula || '-'}</Table.Cell>
-                      <Table.Cell>{pf?.telefono || '-'}</Table.Cell>
-                      <Table.Cell>
-                        {pg?.comprobante_url ? (
-                          <Tooltip content="Ver comprobante de pago">
-                            <Button size="xs" color="blue" onClick={() => openComprobante(row.id)}><HiDownload /></Button>
-                          </Tooltip>
-                        ) : <span className="text-gray-400">Sin comprobante</span>}
-                      </Table.Cell>
-                      <Table.Cell>
-                        <div className="flex gap-2">
-                          <Tooltip content="Aprobar Pago">
-                            <Button size="xs" color="success" onClick={() => aprobar(row)} isProcessing={!!processing[row.id]}><HiCheck /></Button>
-                          </Tooltip>
-                          <Tooltip content="Rechazar Pago">
-                            <Button size="xs" color="failure" onClick={() => handleOpenRejectionModal(row)} isProcessing={!!processing[row.id]}><HiX /></Button>
-                          </Tooltip>
-                        </div>
-                      </Table.Cell>
-                    </Table.Row>
-                  );
-                })}
+                {inscripciones.map((row) => (
+                  <Table.Row key={row.id} className="bg-white dark:border-gray-700 dark:bg-gray-800">
+                    <Table.Cell className="font-medium">{row.id}</Table.Cell>
+                    <Table.Cell>{row.perfiles ? `${row.perfiles.nombre1} ${row.perfiles.apellido1}` : row.usuario_id}</Table.Cell>
+                    <Table.Cell>{row.perfiles?.email || '-'}</Table.Cell>
+                    <Table.Cell>
+                      {row.pagos?.[0]?.comprobante_url ? (
+                        <Button size="xs" color="blue" onClick={() => openReviewModal(row)}>
+                            <HiCheck className="mr-2"/> Revisar y Aprobar
+                        </Button>
+                      ) : <span className="text-gray-400">Sin comprobante</span>}
+                    </Table.Cell>
+                  </Table.Row>
+                ))}
               </Table.Body>
             </Table>
             {inscripciones.length === 0 && <div className="text-center text-gray-500 py-8">No hay pagos pendientes de validación para este evento.</div>}
           </div>
         </Card>
       </div>
+
+      {selectedInscripcion && (
+        <Modal show={isReviewModalOpen} onClose={() => setIsReviewModalOpen(false)} size="4xl">
+          <Modal.Header>Revisar Comprobante de Pago</Modal.Header>
+          <Modal.Body>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="w-full h-96 border rounded-lg overflow-hidden">
+                {isImageUrl(selectedInscripcion.pagos[0].comprobante_url!) ? (
+                  <img src={selectedInscripcion.pagos[0].comprobante_url!} alt="Comprobante" className="w-full h-full object-contain cursor-pointer" onClick={() => handleOpenFsImg(selectedInscripcion.pagos[0].comprobante_url!)} />
+                ) : (
+                  <iframe src={selectedInscripcion.pagos[0].comprobante_url!} className="w-full h-full" title="Comprobante"></iframe>
+                )}
+              </div>
+              <div className="flex flex-col justify-center gap-4">
+                 <Button color="success" onClick={() => aprobar(selectedInscripcion)} isProcessing={!!processing[selectedInscripcion.id]}>
+                    <HiCheck className="mr-2 h-5 w-5" />
+                    Aprobar Pago
+                  </Button>
+                  <Button color="failure" onClick={() => handleOpenRejectionModal(selectedInscripcion)} isProcessing={!!processing[selectedInscripcion.id]}>
+                    <HiX className="mr-2 h-5 w-5" />
+                    Rechazar Pago
+                  </Button>
+              </div>
+            </div>
+          </Modal.Body>
+        </Modal>
+      )}
+
+      {isFsImgOpen && (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black bg-opacity-75" onClick={handleCloseFsImg}>
+          <img src={fsImgUrl!} alt="Fullscreen" className="max-h-full max-w-full" />
+        </div>
+      )}
+
       <RejectionModal 
         isOpen={showRejectionModal}
         onClose={() => setShowRejectionModal(false)}

@@ -231,7 +231,9 @@ const EventoDetalle: React.FC = () => {
         <div className="flex flex-col md:flex-row justify-between items-start mb-4">
           <div>
             <h1 className="text-4xl font-bold text-gray-900 dark:text-white">{evento.nombre}</h1>
-            <Badge color="cyan" size="sm" className="mt-2 inline-block capitalize">{evento.tipo?.replace('_', ' ')}</Badge>
+            <div className="flex flex-wrap gap-2 mt-2">
+              <Badge color="cyan" size="sm" className="inline-block capitalize">{evento.tipo?.replace('_', ' ')}</Badge>
+            </div>
           </div>
           {renderPriceOrStatus()}
         </div>
@@ -293,6 +295,28 @@ const EventoDetalle: React.FC = () => {
                     onClick={() => navigate(`/evento/${evento.id}/inscripcion`)}
                 >
                     {registrationMessage}
+                </Button>
+            </div>
+        )}
+        {enrollmentStatus === 'documentos_rechazados' && (
+            <div className="mt-8 flex justify-end">
+                <Button 
+                    color="warning" 
+                    size="lg"
+                    onClick={() => navigate(`/evento/${evento.id}/inscripcion`)}
+                >
+                    Reenviar Solicitud
+                </Button>
+            </div>
+        )}
+        {enrollmentStatus === 'pendiente_pago' && (
+            <div className="mt-8 flex justify-end">
+                <Button 
+                    color="success" 
+                    size="lg"
+                    onClick={() => navigate(`/evento/${evento.id}/inscripcion`)}
+                >
+                    Realizar Pago
                 </Button>
             </div>
         )}
