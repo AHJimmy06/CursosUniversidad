@@ -156,7 +156,7 @@ const InscripcionWizard: React.FC = () => {
     }
   };
 
-  const renderDocumentInput = (docKey: keyof Omit<Inscripcion, 'id' | 'usuario_id' | 'evento_id' | 'estado' | 'fecha_inscripcion' | 'nota_final' | 'asistencia' | 'certificado_url' | 'perfiles' | 'created_at'>, label: string, setFile: (file: File | null) => void) => {
+  const renderDocumentInput = (docKey: 'titulo_tercer_nivel' | 'carta_motivacion' | 'certificacion_previo', label: string, setFile: (file: File | null) => void) => {
     if (!evento?.[`requiere_${docKey}`] || currentInscription?.[`${docKey}_estado`] === 'aprobado') return null;
 
     const status = currentInscription?.[`${docKey}_estado`];

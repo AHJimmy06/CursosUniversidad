@@ -103,7 +103,10 @@ const MisEventos = () => {
         </div>
       ) : (
         <div className="text-center py-10">
-          <p className="text-lg text-gray-500">No estás inscrito en ningún evento.</p>
+          <p className="text-lg text-gray-500 mb-4">Parece que aún no te has inscrito en ningún evento. ¡Explora nuestro catálogo y encuentra algo de tu interés!</p>
+          <Button as={Link} to="/catalogo" color="primary">
+            Explorar Eventos
+          </Button>
         </div>
       )}
     </div>

@@ -8,6 +8,7 @@ import UserAvatar from "../../../components/shared/UserAvatar";
 const Profile = () => {
   const navigate = useNavigate();
   const { profile, loading } = useUser();
+  const isAdmin = profile?.rol === 'administrador';
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -38,14 +39,16 @@ const Profile = () => {
           <Icon icon="solar:user-circle-outline" height={20} />
           Mi Perfil
         </Dropdown.Item>
-        <Dropdown.Item
-          as={Link}
-          to="/configuracion"
-          className="px-3 py-3 flex items-center bg-hover group/link w-full gap-3 text-dark"
-        >
-          <Icon icon="solar:settings-linear" height={20} />
-          Configuración
-        </Dropdown.Item>
+        {isAdmin && (
+          <Dropdown.Item
+            as={Link}
+            to="/configuracion"
+            className="px-3 py-3 flex items-center bg-hover group/link w-full gap-3 text-dark"
+          >
+            <Icon icon="solar:settings-linear" height={20} />
+            Configuración
+          </Dropdown.Item>
+        )}
         <Dropdown.Item
           onClick={handleLogout}
           className="px-3 py-3 flex items-center bg-hover group/link w-full gap-3 text-red-600"

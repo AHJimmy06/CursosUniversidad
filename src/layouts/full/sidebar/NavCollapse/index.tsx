@@ -5,12 +5,11 @@ import NavItems from "../NavItems";
 import { useLocation } from "react-router";
 import React from "react";
 import { CustomCollapse } from "../CustomCollapse";
+import { Tooltip } from "flowbite-react";
 
 interface NavCollapseProps {
   item: ChildItem;
 }
-
-
 
 const NavCollapse: React.FC<NavCollapseProps> = ({ item }: any) => {
   const location = useLocation();
@@ -19,17 +18,15 @@ const NavCollapse: React.FC<NavCollapseProps> = ({ item }: any) => {
   // Determine if any child matches the current path
   const activeDD = item.children.find((t: { url: string }) => t.url === pathname);
   
-
   // Manage open/close state for the collapse
   const [isOpen, setIsOpen] = useState<boolean>(!!activeDD);
-
 
   // Toggle the collapse
   const handleToggle = () => {
     setIsOpen((prev) => !prev);
   };
 
-  return (
+  const CollapseContent = (
     <CustomCollapse
       label={ `${item.name}`}
       open={isOpen}
@@ -57,6 +54,14 @@ const NavCollapse: React.FC<NavCollapseProps> = ({ item }: any) => {
         </div>
       )}
     </CustomCollapse>
+  );
+
+  return item.description ? (
+    <Tooltip content={item.description} placement="right">
+      {CollapseContent}
+    </Tooltip>
+  ) : (
+    CollapseContent
   );
 };
 

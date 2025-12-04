@@ -4,6 +4,7 @@ import { HiCheck, HiDownload, HiInformationCircle, HiX, HiPrinter } from 'react-
 import { useUser } from 'src/contexts/UserContext';
 import { supabase } from 'src/utils/supabaseClient';
 import { Evento, Inscripcion, PerfilSimple } from 'src/types/eventos';
+import { UserProfile } from 'src/types/user';
 import { useParams } from 'react-router-dom';
 import RejectionModal from './RejectionModal';
 
@@ -15,7 +16,7 @@ interface PagoLite {
 }
 
 interface InscripcionConDetalles extends Inscripcion {
-  perfiles: PerfilSimple;
+  perfiles: UserProfile;
   pagos: PagoLite[];
 }
 
@@ -52,7 +53,7 @@ const ValidacionMatriculas: React.FC = () => {
       const { data: insc, error: e1 } = await supabase.from('inscripciones').select('*, perfiles(*)').eq('evento_id', cursoId).eq('estado', 'pendiente_revision');
       if (e1) throw e1;
       
-      const inscripcionesData = (insc || []) as (Inscripcion & { perfiles: PerfilSimple })[];
+      const inscripcionesData = (insc || []) as (Inscripcion & { perfiles: UserProfile })[];
 
       if (inscripcionesData.length === 0) {
         setInscripciones([]);

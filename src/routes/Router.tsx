@@ -37,6 +37,10 @@ const ApproveDocuments = Loadable(lazy(() => import('../views/responsable/Approv
 
 const MisEventos = Loadable(lazy(() => import('../views/estudiante/MisEventos')));
 const LandingPage = Loadable(lazy(() => import('../views/landing/LandingPage')));
+const AboutUsPage = Loadable(lazy(() => import('../views/landing/info/AboutUsPage')));
+const ContactPage = Loadable(lazy(() => import('../views/landing/info/ContactPage')));
+const PrivacyPolicyPage = Loadable(lazy(() => import('../views/landing/info/PrivacyPolicyPage')));
+const TermsAndConditionsPage = Loadable(lazy(() => import('../views/landing/info/TermsAndConditionsPage')));
 
 const AuthRoutes = () => {
   const { user, profile, loading, isLoggingIn } = useUser();
@@ -108,7 +112,11 @@ const Router = [
         path: '/landing',
         element: <BlankLayout />,
         children: [
-          { path: '', element: <LandingPage /> }
+          { path: '', element: <LandingPage /> },
+          { path: 'about', element: <AboutUsPage /> },
+          { path: 'contact', element: <ContactPage /> },
+          { path: 'privacy-policy', element: <PrivacyPolicyPage /> },
+          { path: 'terms-and-conditions', element: <TermsAndConditionsPage /> },
         ]
       },
       {
