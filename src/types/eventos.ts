@@ -41,6 +41,7 @@ export interface Evento {
   requiere_titulo_tercer_nivel?: boolean;
   requiere_carta_motivacion?: boolean;
   requiere_certificacion_previo?: boolean;
+  is_featured?: boolean;
 }
 
 export interface Inscripcion {
