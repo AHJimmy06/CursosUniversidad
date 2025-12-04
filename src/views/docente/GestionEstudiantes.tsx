@@ -183,6 +183,8 @@ const GestionEstudiantes: React.FC = () => {
     console.log('PDF guardado.');
   };
 
+  const isFinalizado = evento?.estado === 'finalizado';
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-[60vh]">
@@ -207,6 +209,11 @@ const GestionEstudiantes: React.FC = () => {
         )}
       </div>
       {error && <Alert color="failure" icon={HiInformationCircle} className="mb-4">{error}</Alert>}
+      {isFinalizado && (
+        <Alert color="info" className="mb-4">
+          Este curso ha sido finalizado. La edición de notas y asistencia está desactivada.
+        </Alert>
+      )}
       <Table hoverable>
         <Table.Head>
           <Table.HeadCell>Estudiante</Table.HeadCell>
@@ -227,6 +234,7 @@ const GestionEstudiantes: React.FC = () => {
                   value={est.notaFinal ?? ''}
                   onChange={(e) => handleNotaChange(est.id, e.target.value)}
                   className="w-24"
+                  disabled={isFinalizado}
                 />
               </Table.Cell>
               <Table.Cell>
@@ -235,6 +243,7 @@ const GestionEstudiantes: React.FC = () => {
                   value={est.asistencia ?? ''}
                   onChange={(e) => handleAsistenciaChange(est.id, e.target.value)}
                   className="w-24"
+                  disabled={isFinalizado}
                 />
               </Table.Cell>
             </Table.Row>
@@ -242,7 +251,7 @@ const GestionEstudiantes: React.FC = () => {
         </Table.Body>
       </Table>
       <div className="flex items-center mt-4 space-x-4">
-        <Button color="blue" onClick={handleGuardarCambios}>
+        <Button color="blue" onClick={handleGuardarCambios} disabled={isFinalizado}>
           Guardar Cambios (Notas/Asistencia)
         </Button>
       </div>

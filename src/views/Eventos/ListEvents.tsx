@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../utils/supabaseClient';
-import { Table, Dropdown, Modal, Alert, Card, Label, TextInput, Select } from 'flowbite-react';
+import { Table, Dropdown, Modal, Alert, Card, Label, TextInput, Select, Spinner } from 'flowbite-react';
 import EditEventForm from './componentesEventos/EditEventForm';
-import { Evento } from '../../types/eventos';
+import { Evento, Inscripcion, PerfilSimple } from '../../types/eventos';
 import { useUser } from 'src/contexts/UserContext';
+import { generateCertificate } from 'src/utils/certificateGenerator';
 
 const ListEvents: React.FC = () => {
   const [events, setEvents] = useState<Evento[]>([]);
@@ -14,6 +15,7 @@ const ListEvents: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [responsibleFilter, setResponsibleFilter] = useState('');
+  const [isGeneratingCertificates, setIsGeneratingCertificates] = useState<boolean>(false);
 
   const { activeRole } = useUser();
   const isAdmin = activeRole === 'administrador';
@@ -77,7 +79,58 @@ const ListEvents: React.FC = () => {
     fetchEventsAndResponsables();
   };
 
-  const handleChangeState = async (eventId: number, newState: 'publicado' | 'inactivo' | 'borrador') => {
+  const generarCertificados = async (eventId: number) => {
+    setIsGeneratingCertificates(true);
+    try {
+      const { data: eventData, error: eventError } = await supabase
+        .from('Eventos')
+        .select('*')
+        .eq('id', eventId)
+        .single();
+
+      if (eventError) throw eventError;
+      if (!eventData.genera_certificado) return;
+
+      const { data: inscriptions, error: inscriptionsError } = await supabase
+        .from('inscripciones')
+        .select('*, perfiles(id, nombre1, apellido1, email)')
+        .eq('evento_id', eventId)
+        .eq('estado', 'confirmada');
+
+      if (inscriptionsError) throw inscriptionsError;
+
+      for (const inscription of inscriptions as (Inscripcion & { perfiles: PerfilSimple })[]) {
+        let certificateType: 'aprobacion' | 'participacion' = 'participacion';
+
+        const meetsNota = !eventData.requiere_nota || (inscription.nota_final != null && eventData.nota_aprobacion != null && inscription.nota_final >= eventData.nota_aprobacion);
+        const meetsAsistencia = !eventData.requiere_asistencia || (inscription.asistencia != null && eventData.asistencia_minima != null && inscription.asistencia >= eventData.asistencia_minima);
+
+        if (meetsNota && meetsAsistencia) {
+          certificateType = 'aprobacion';
+        }
+
+        const certificateDataUrl = generateCertificate(inscription.perfiles, eventData, inscription, certificateType);
+
+        const { error: updateError } = await supabase
+          .from('inscripciones')
+          .update({ certificado_url: certificateDataUrl, tipo_certificado: certificateType })
+          .eq('id', inscription.id);
+
+        if (updateError) {
+          console.error(`Error updating inscription ${inscription.id}:`, updateError);
+          throw updateError;
+        }
+      }
+      alert('Certificados generados y asignados exitosamente.');
+    } catch (error) {
+      console.error('Error generating certificates:', error);
+      alert('Error al generar los certificados: ' + (error as any).message);
+    } finally {
+      setIsGeneratingCertificates(false);
+    }
+  };
+
+  const handleChangeState = async (eventId: number, newState: 'publicado' | 'inactivo' | 'borrador' | 'finalizado') => {
     if (window.confirm(`¿Estás seguro de que quieres cambiar el estado a "${newState}"?`)) {
       try {
         const { error } = await supabase
@@ -86,6 +139,10 @@ const ListEvents: React.FC = () => {
           .eq('id', eventId);
 
         if (error) throw error;
+
+        if (newState === 'finalizado') {
+          await generarCertificados(eventId);
+        }
 
         setEvents(
           events.map(e =>
@@ -97,7 +154,7 @@ const ListEvents: React.FC = () => {
         alert('Error al cambiar el estado: ' + err.message);
       }
     }
-  };
+  }
 
   const getStatusStyle = (estado: string) => {
     switch (estado.toLowerCase()) {
@@ -108,6 +165,8 @@ const ListEvents: React.FC = () => {
         return 'bg-red-100 text-red-800';
       case 'borrador':
         return 'bg-yellow-100 text-yellow-800';
+      case 'finalizado':
+        return 'bg-blue-100 text-blue-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -134,6 +193,14 @@ const ListEvents: React.FC = () => {
 
   return (
     <>
+      <Modal show={isGeneratingCertificates} size="md" popup>
+        <Modal.Body>
+          <div className="text-center py-8">
+            <Spinner size="xl" />
+            <p className="text-lg mt-4">Generando certificados, por favor espera...</p>
+          </div>
+        </Modal.Body>
+      </Modal>
       <h2 className="text-2xl font-bold mb-4">Listado de Eventos</h2>
       <Card className="mb-6">
         <h5 className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
@@ -230,6 +297,11 @@ const ListEvents: React.FC = () => {
                     {event.estado !== 'borrador' && (
                       <Dropdown.Item onClick={() => handleChangeState(event.id, 'borrador')}>
                         Marcar como Borrador
+                      </Dropdown.Item>
+                    )}
+                     {(isAdmin || isResponsible) && event.estado === 'publicado' && (
+                      <Dropdown.Item onClick={() => handleChangeState(event.id, 'finalizado')}>
+                        Finalizar Curso
                       </Dropdown.Item>
                     )}
                   </Dropdown>

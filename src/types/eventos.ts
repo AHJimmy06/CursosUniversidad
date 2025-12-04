@@ -52,6 +52,7 @@ export interface Inscripcion {
   nota_final?: number;
   asistencia?: number;
   certificado_url?: string;
+  tipo_certificado?: 'aprobacion' | 'participacion';
   comprobante_pago_url?: string;
   titulo_tercer_nivel_url?: string;
   titulo_tercer_nivel_estado?: 'aprobado' | 'rechazado' | 'pendiente' | 'no_requerido';
