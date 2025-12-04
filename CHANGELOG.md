@@ -1,4 +1,9 @@
-# Changelog
+# CHANGELOG
+
+## v2.0.0
+- Major release with new features and improvements.
+
+
 
 Todos los cambios notables en este proyecto serán documentados en este archivo.
 
